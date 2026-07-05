@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SystemCheck — NPLEX I Study Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root{
+    --paper:#EFF3EE; --paper-raised:#FFFFFF; --ink:#16221F; --ink-soft:#57635C;
+    --line:#D6DBD2; --line-strong:#B9C1B5;
+    --teal:#1F6F5C; --teal-soft:#E1EEE8;
+    --amber:#A8701A; --amber-soft:#F5EAD6;
+    --coral:#AE3A2E; --coral-soft:#F5E1DE;
+    --font-display:'Source Serif 4', Georgia, serif;
+    --font-body:'IBM Plex Sans', -apple-system, sans-serif;
+    --font-mono:'IBM Plex Mono', 'Courier New', monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--paper);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+  #app{display:flex;min-height:100vh;}
+  a{color:inherit;} button{font-family:var(--font-body);cursor:pointer;}
+
+  #sidebar{width:236px;flex-shrink:0;background:var(--paper-raised);border-right:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;}
+  .brand{padding:26px 22px 18px 22px;}
+  .brand-name{font-family:var(--font-display);font-weight:700;font-size:20px;letter-spacing:-0.01em;}
+  .brand-sub{font-family:var(--font-mono);font-size:10.5px;color:var(--ink-soft);letter-spacing:.08em;text-transform:uppercase;margin-top:4px;}
+  .pulse-rule{height:22px;margin:6px 22px 8px 22px;}
+  nav.mainnav{display:flex;flex-direction:column;padding:6px 12px;gap:2px;flex:1;}
+  .navbtn{display:flex;align-items:center;gap:10px;text-align:left;padding:10px 12px;border:none;background:transparent;border-radius:7px;font-size:13.5px;color:var(--ink-soft);font-weight:500;}
+  .navbtn:hover{background:var(--teal-soft);color:var(--ink);}
+  .navbtn.active{background:var(--teal);color:#fff;}
+  .navbtn .dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.55;flex-shrink:0;}
+  .sidebar-foot{padding:14px 22px 20px 22px;border-top:1px solid var(--line);}
+  .reset-link{font-family:var(--font-mono);font-size:11px;color:var(--ink-soft);background:none;border:none;padding:0;text-decoration:underline;text-underline-offset:2px;display:block;margin-bottom:8px;}
+  .whoami{font-family:var(--font-mono);font-size:11px;color:var(--ink-soft);margin-bottom:8px;word-break:break-all;}
+
+  #main{flex:1;padding:36px 40px 80px 40px;max-width:1040px;}
+  .eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);}
+  h1.pagetitle{font-family:var(--font-display);font-size:30px;font-weight:700;margin:2px 0 6px 0;letter-spacing:-0.01em;}
+  .lede{color:var(--ink-soft);font-size:14px;margin-bottom:26px;max-width:640px;}
+  .card{background:var(--paper-raised);border:1px solid var(--line);border-radius:10px;padding:22px 24px;margin-bottom:20px;}
+  .card-title{font-family:var(--font-display);font-size:17px;font-weight:600;margin:0 0 14px 0;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media (max-width:720px){.grid2{grid-template-columns:1fr;}}
+  label.field-label{display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em;}
+  input[type=text],input[type=email],input[type=password],input[type=number],textarea,select{width:100%;padding:9px 11px;border:1px solid var(--line-strong);border-radius:6px;font-family:var(--font-body);font-size:14px;background:#fff;color:var(--ink);}
+  textarea{resize:vertical;min-height:64px;}
+  .formrow{margin-bottom:14px;}
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:10px 16px;border-radius:7px;border:1px solid var(--ink);background:var(--ink);color:#fff;font-weight:600;font-size:13.5px;}
+  .btn:hover{opacity:.88;} .btn.secondary{background:#fff;color:var(--ink);border:1px solid var(--line-strong);}
+  .btn.teal{background:var(--teal);border-color:var(--teal);} .btn.ghost{background:transparent;border:1px solid var(--line-strong);color:var(--ink-soft);}
+  .btn.danger{background:#fff;color:var(--coral);border:1px solid var(--coral);} .btn:disabled{opacity:.4;cursor:not-allowed;}
+  .btn-sm{padding:6px 10px;font-size:12px;border-radius:6px;}
+  .chip{display:inline-block;padding:3px 9px;border-radius:100px;font-size:11px;font-weight:600;font-family:var(--font-mono);}
+  .chip.teal{background:var(--teal-soft);color:var(--teal);} .chip.amber{background:var(--amber-soft);color:var(--amber);}
+  .chip.coral{background:var(--coral-soft);color:var(--coral);} .chip.neutral{background:var(--paper);color:var(--ink-soft);}
+  table{width:100%;border-collapse:collapse;}
+  th{text-align:left;font-family:var(--font-mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);padding:6px 8px;border-bottom:1px solid var(--line);}
+  td{padding:9px 8px;border-bottom:1px solid var(--line);font-size:13.5px;vertical-align:top;} tr:last-child td{border-bottom:none;}
+  .stat-hero{display:flex;gap:36px;flex-wrap:wrap;margin-bottom:8px;}
+  .stat-big{font-family:var(--font-display);font-size:44px;font-weight:700;line-height:1;}
+  .stat-label{font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);margin-top:6px;}
+  .sysrow{display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);} .sysrow:last-child{border-bottom:none;}
+  .sysrow .sysnum{font-family:var(--font-mono);font-size:11px;color:var(--ink-soft);width:22px;flex-shrink:0;}
+  .sysrow .sysname{width:190px;flex-shrink:0;font-weight:600;font-size:13.5px;}
+  .sysrow .sysmeta{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-soft);width:82px;flex-shrink:0;}
+  .sysrow .sysekg{flex:1;min-width:0;} .sysrow .systag{flex-shrink:0;}
+  .qcard{border:1px solid var(--line);border-radius:8px;padding:16px 18px;margin-bottom:12px;background:#fff;}
+  .qcard .stem{font-size:14.5px;margin-bottom:12px;}
+  .optlist{display:flex;flex-direction:column;gap:8px;}
+  .optbtn{text-align:left;padding:11px 13px;border:1px solid var(--line-strong);border-radius:7px;background:#fff;font-size:14px;display:flex;gap:10px;align-items:flex-start;}
+  .optbtn:hover{border-color:var(--teal);} .optbtn.selected{border-color:var(--ink);background:var(--paper);}
+  .optbtn .optkey{font-family:var(--font-mono);font-weight:600;color:var(--ink-soft);flex-shrink:0;}
+  .optbtn.correct{border-color:var(--teal);background:var(--teal-soft);} .optbtn.incorrect{border-color:var(--coral);background:var(--coral-soft);}
+  .quizbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--line);}
+  .timerbox{font-family:var(--font-mono);font-size:22px;font-weight:600;padding:6px 14px;border-radius:7px;background:var(--paper);}
+  .timerbox.low{color:var(--coral);background:var(--coral-soft);}
+  .confbtns{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+  .confbtn{padding:8px 14px;border-radius:100px;border:1px solid var(--line-strong);background:#fff;font-size:13px;font-weight:600;}
+  .confbtn.selected{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .checkgrid{display:flex;flex-wrap:wrap;gap:8px;}
+  .checkchip{display:flex;align-items:center;gap:6px;border:1px solid var(--line-strong);border-radius:100px;padding:6px 12px;font-size:12.5px;cursor:pointer;}
+  .checkchip input{margin:0;}
+  .empty{padding:30px 18px;text-align:center;color:var(--ink-soft);font-size:13.5px;border:1px dashed var(--line-strong);border-radius:8px;}
+  .searchbar{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+  .helptext{font-size:12px;color:var(--ink-soft);margin-top:4px;}
+  .errtext{font-size:12.5px;color:var(--coral);margin-top:8px;}
+  .notice{background:var(--amber-soft);color:var(--amber);border-radius:7px;padding:10px 14px;font-size:13px;margin-bottom:14px;}
+  hr.hair{border:none;border-top:1px solid var(--line);margin:18px 0;}
+
+  /* auth screen */
+  #authScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;width:100%;}
+  .authcard{background:var(--paper-raised);border:1px solid var(--line);border-radius:12px;padding:36px;max-width:380px;width:100%;}
+  .authtabs{display:flex;gap:6px;margin-bottom:18px;}
+  .authtab{flex:1;padding:9px;text-align:center;border-radius:7px;border:1px solid var(--line-strong);background:#fff;font-size:13px;font-weight:600;color:var(--ink-soft);}
+  .authtab.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+
+  @media (max-width:860px){
+    #app{flex-direction:column;} #sidebar{width:100%;height:auto;position:relative;flex-direction:row;overflow-x:auto;}
+    .brand{padding:16px 16px 10px 16px;} .pulse-rule{display:none;}
+    nav.mainnav{flex-direction:row;padding:6px 10px 14px 10px;overflow-x:auto;} .sidebar-foot{display:none;}
+    #main{padding:24px 18px 60px 18px;} .sysrow{flex-wrap:wrap;} .sysrow .sysname{width:auto;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="authScreen" style="display:none;">
+    <div class="authcard">
+      <div class="brand-name" style="margin-bottom:2px;">SystemCheck</div>
+      <div class="brand-sub" style="margin-bottom:22px;">NPLEX I Study Engine</div>
+      <div class="authtabs">
+        <button class="authtab active" id="tabSignIn">Sign in</button>
+        <button class="authtab" id="tabSignUp">Create account</button>
+      </div>
+      <form id="authForm">
+        <div class="formrow"><label class="field-label">Email</label><input type="email" name="email" required></div>
+        <div class="formrow"><label class="field-label">Password</label><input type="password" name="password" required minlength="6"></div>
+        <button type="submit" class="btn teal" style="width:100%;justify-content:center;" id="authSubmitBtn">Sign in</button>
+        <div class="errtext" id="authError"></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="mainApp" style="display:none;width:100%;">
+    <aside id="sidebar">
+      <div class="brand">
+        <div class="brand-name">SystemCheck</div>
+        <div class="brand-sub">NPLEX I Study Engine</div>
+      </div>
+      <div class="pulse-rule"><svg width="100%" height="22" viewBox="0 0 192 22" preserveAspectRatio="none"><polyline points="0,11 60,11 70,3 80,19 90,11 192,11" fill="none" stroke="#1F6F5C" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg></div>
+      <nav class="mainnav" id="mainnav"></nav>
+      <div class="sidebar-foot">
+        <div class="whoami" id="whoami"></div>
+        <button class="reset-link" data-action="open-settings">Data &amp; reset options</button>
+        <button class="reset-link" data-action="sign-out">Sign out</button>
+      </div>
+    </aside>
+    <main id="main"></main>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   SUPABASE CONFIG — replace these two values, see SETUP-GUIDE.md
+   ===================================================================== */
+const SUPABASE_URL = 'YOUR_SUPABASE_PROJECT_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* =====================================================================
+   DATA MODEL
+   ===================================================================== */
+const SYSTEMS = [
+  {key:'general',   label:'General Biomedical Science', num:'00', hint:'Biochemistry, genetics, microbiology & pathology not tied to one organ system'},
+  {key:'cardio',     label:'Cardiovascular',            num:'01'},
+  {key:'endocrine',  label:'Endocrine',                 num:'02'},
+  {key:'gi',         label:'Gastrointestinal',          num:'03'},
+  {key:'heme',       label:'Hematopoietic & Lymphatic', num:'04'},
+  {key:'immune',     label:'Immunological',             num:'05'},
+  {key:'integument', label:'Integumentary',             num:'06'},
+  {key:'msk',        label:'Musculoskeletal',           num:'07'},
+  {key:'neuro',      label:'Nervous System',            num:'08'},
+  {key:'renal',      label:'Renal & Urinary',           num:'09'},
+  {key:'repro',      label:'Reproductive',              num:'10'},
+  {key:'resp',       label:'Respiratory',               num:'11'},
+];
+const NAV = [
+  {key:'dashboard', label:'Dashboard'},
+  {key:'bank',      label:'Question Bank'},
+  {key:'systems',   label:'Body Systems'},
+  {key:'timed',     label:'Timed Quiz'},
+  {key:'exam',      label:'Random Exam'},
+  {key:'review',    label:'Review Log'},
+];
+const CONF_LABELS = {unknown:'Did not know', guessed:'Guessed', understood:'Understood'};
+
+const state = {
+  view:'dashboard', questions:[], attempts:[], reviews:[],
+  bankFilter:'all', bankSearch:'', editingId:null, quiz:null,
+  reviewFilterSystem:'all', reviewFilterConf:'all',
+  session:null, authMode:'signin',
+};
+
+function sysLabel(key){ const s=SYSTEMS.find(s=>s.key===key); return s? s.label : key; }
+function sysNum(key){ const s=SYSTEMS.find(s=>s.key===key); return s? s.num : '--'; }
+function shuffle(arr){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+function escapeHtml(s){ return (s||'').replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function escapeAttr(s){ return (s||'').replace(/"/g,'&quot;'); }
+
+/* =====================================================================
+   SUPABASE ROW <-> APP SHAPE CONVERSION
+   ===================================================================== */
+function rowToQuestion(r){ return {id:r.id, system:r.system, stem:r.stem, options:r.options, correct:r.correct, explanation:r.explanation||'', createdBy:r.created_by, createdByEmail:r.created_by_email}; }
+function rowToAttempt(r){ return {id:r.id, mode:r.mode, perQ:r.per_q, total:r.total, correct:r.correct, questions:r.questions, date:new Date(r.created_at).getTime()}; }
+function rowToReview(r){ return {id:r.id, system:r.system, stem:r.stem, options:r.options, chosenIndex:r.chosen_index, correctIndex:r.correct_index, explanation:r.explanation||'', confidence:r.confidence, clueMissed:r.clue_missed||'', factUnknown:r.fact_unknown||'', whyWrong:r.why_wrong||'', date:new Date(r.created_at).getTime()}; }
+
+async function loadAll(){
+  const [{data:qs, error:qErr}, {data:at, error:aErr}, {data:rv, error:rErr}] = await Promise.all([
+    sb.from('questions').select('*').order('created_at',{ascending:true}),
+    sb.from('attempts').select('*').order('created_at',{ascending:true}),
+    sb.from('reviews').select('*').order('created_at',{ascending:true}),
+  ]);
+  if(qErr || aErr || rErr){ console.error(qErr||aErr||rErr); }
+  state.questions = (qs||[]).map(rowToQuestion);
+  state.attempts = (at||[]).map(rowToAttempt);
+  state.reviews = (rv||[]).map(rowToReview);
+}
+
+/* =====================================================================
+   AGGREGATION HELPERS
+   ===================================================================== */
+function systemStats(){
+  const map = {}; SYSTEMS.forEach(s=> map[s.key] = {correct:0,total:0});
+  state.attempts.forEach(att=> att.questions.forEach(q=>{
+    if(!map[q.system]) map[q.system] = {correct:0,total:0};
+    map[q.system].total++; if(q.correct) map[q.system].correct++;
+  }));
+  return map;
+}
+function overallStats(){
+  let correct=0,total=0;
+  state.attempts.forEach(att=>att.questions.forEach(q=>{ total++; if(q.correct) correct++; }));
+  return {correct,total,pct: total? Math.round(correct/total*100):null};
+}
+function tierFor(accuracy,total){
+  if(total<5) return {tier:'new',chip:'neutral',text:'Building data'};
+  if(accuracy>=85) return {tier:'strong',chip:'teal',text:'Strong'};
+  if(accuracy>=70) return {tier:'developing',chip:'amber',text:'Developing'};
+  return {tier:'risk',chip:'coral',text:'At risk'};
+}
+function ekgSVG(accuracy,hasData,width){
+  width = width || 260; const h=40, mid=h/2;
+  const peak = hasData ? 4 + (accuracy/100)*26 : 3;
+  const color = !hasData ? '#B9C1B5' : (accuracy>=85?'#1F6F5C':accuracy>=70?'#A8701A':'#AE3A2E');
+  const p = [[0,mid],[width*0.28,mid],[width*0.34,mid-peak*0.35],[width*0.40,mid+peak],[width*0.46,mid-peak*0.6],[width*0.52,mid],[width,mid]].map(pt=>pt.join(',')).join(' ');
+  return `<svg width="${width}" height="${h}" viewBox="0 0 ${width} ${h}" preserveAspectRatio="none"><polyline points="${p}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
+
+/* =====================================================================
+   AUTH SCREEN
+   ===================================================================== */
+function showAuthScreen(){
+  document.getElementById('authScreen').style.display='flex';
+  document.getElementById('mainApp').style.display='none';
+}
+function showMainApp(){
+  document.getElementById('authScreen').style.display='none';
+  document.getElementById('mainApp').style.display='flex';
+  document.getElementById('whoami').textContent = state.session.user.email;
+  render();
+}
+document.getElementById('tabSignIn').addEventListener('click', ()=>{
+  state.authMode='signin';
+  document.getElementById('tabSignIn').classList.add('active');
+  document.getElementById('tabSignUp').classList.remove('active');
+  document.getElementById('authSubmitBtn').textContent='Sign in';
+});
+document.getElementById('tabSignUp').addEventListener('click', ()=>{
+  state.authMode='signup';
+  document.getElementById('tabSignUp').classList.add('active');
+  document.getElementById('tabSignIn').classList.remove('active');
+  document.getElementById('authSubmitBtn').textContent='Create account';
+});
+document.getElementById('authForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const f = e.target;
+  const email = f.email.value.trim(), password = f.password.value;
+  const errEl = document.getElementById('authError');
+  errEl.textContent = '';
+  let result;
+  if(state.authMode==='signup'){ result = await sb.auth.signUp({email,password}); }
+  else { result = await sb.auth.signInWithPassword({email,password}); }
+  if(result.error){ errEl.textContent = result.error.message; return; }
+  if(state.authMode==='signup' && !result.data.session){
+    errEl.style.color = 'var(--teal)';
+    errEl.textContent = 'Account created — check your email to confirm, then sign in.';
+    return;
+  }
+  state.session = result.data.session;
+  await loadAll();
+  showMainApp();
+});
+
+/* =====================================================================
+   RENDER: SHELL / NAV
+   ===================================================================== */
+function renderNav(){
+  document.getElementById('mainnav').innerHTML = NAV.map(n=>`
+    <button class="navbtn ${state.view===n.key?'active':''}" data-action="nav" data-view="${n.key}"><span class="dot"></span>${n.label}</button>`).join('');
+}
+function render(){
+  renderNav();
+  const renderers = { dashboard:renderDashboard, bank:renderBank, systems:renderSystems, timed:renderTimedSetup, exam:renderExamSetup, review:renderReviewLog, quiz:renderQuizRunner, results:renderResults, settings:renderSettings };
+  document.getElementById('main').innerHTML = (renderers[state.view]||renderDashboard)();
+}
+
+/* =====================================================================
+   VIEW: DASHBOARD
+   ===================================================================== */
+function renderDashboard(){
+  const overall = overallStats(); const stats = systemStats();
+  const confCounts = {unknown:0,guessed:0,understood:0};
+  state.reviews.forEach(r=> confCounts[r.confidence] = (confCounts[r.confidence]||0)+1);
+  const totalReviews = state.reviews.length;
+  const atRisk = SYSTEMS.filter(s=>{ const st=stats[s.key]; const acc = st.total? Math.round(st.correct/st.total*100):0; return tierFor(acc,st.total).tier==='risk'; });
+  return `
+    <div class="eyebrow">Progress overview</div>
+    <h1 class="pagetitle">Dashboard</h1>
+    <p class="lede">Your personal accuracy across every NPLEX I biomedical science system, drawn from the shared class question bank.</p>
+    <div class="card"><div class="stat-hero">
+      <div><div class="stat-big">${overall.pct===null?'—':overall.pct+'%'}</div><div class="stat-label">Overall accuracy</div></div>
+      <div><div class="stat-big">${overall.total}</div><div class="stat-label">Questions answered</div></div>
+      <div><div class="stat-big">${state.attempts.length}</div><div class="stat-label">Quizzes / exams run</div></div>
+      <div><div class="stat-big">${totalReviews}</div><div class="stat-label">Gaps logged</div></div>
+    </div></div>
+    ${atRisk.length?`<div class="notice"><strong>${atRisk.length} system${atRisk.length>1?'s':''} at risk:</strong> ${atRisk.map(s=>s.label).join(', ')} — accuracy is below 70% over 5+ questions.</div>`:''}
+    <div class="card"><div class="card-title">System mastery</div>
+      ${SYSTEMS.map(s=>{ const st=stats[s.key]; const acc = st.total? Math.round(st.correct/st.total*100):0; const t=tierFor(acc,st.total);
+        return `<div class="sysrow"><span class="sysnum">${s.num}</span><span class="sysname">${s.label}</span><span class="sysmeta">${st.total? st.correct+'/'+st.total:'no data'}</span><span class="sysekg">${ekgSVG(acc,st.total>0)}</span><span class="systag"><span class="chip ${t.chip}">${t.text}</span></span></div>`;
+      }).join('')}
+    </div>
+    <div class="grid2">
+      <div class="card"><div class="card-title">Confidence at time of answer</div>
+        ${['understood','guessed','unknown'].map(k=>{ const n=confCounts[k]||0; const pct = totalReviews? Math.round(n/totalReviews*100):0; const color = k==='understood'?'var(--teal)':k==='guessed'?'var(--amber)':'var(--coral)';
+          return `<div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px;"><span>${CONF_LABELS[k]}</span><span class="helptext">${n}</span></div><div style="height:8px;border-radius:5px;background:var(--paper);overflow:hidden;"><div style="height:100%;width:${pct}%;background:${color};"></div></div></div>`;
+        }).join('')}
+        ${!totalReviews?'<div class="helptext">Log a gap from your quiz results to start tracking this.</div>':''}
+      </div>
+      <div class="card"><div class="card-title">Recent attempts</div>
+        ${state.attempts.length? state.attempts.slice(-6).reverse().map(a=>{ const pct=Math.round(a.correct/a.total*100);
+          return `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;"><span>${a.mode==='exam'?'Random exam':'Timed quiz'} · ${a.total}Q</span><span class="chip ${pct>=85?'teal':pct>=70?'amber':'coral'}">${pct}%</span></div>`;
+        }).join('') : '<div class="helptext">No attempts yet — run a timed quiz to begin.</div>'}
+      </div>
+    </div>`;
+}
+
+/* =====================================================================
+   VIEW: QUESTION BANK (shared, class-wide)
+   ===================================================================== */
+function renderBank(){
+  const editing = state.editingId ? state.questions.find(q=>q.id===state.editingId) : null;
+  const myId = state.session.user.id;
+  const filtered = state.questions.filter(q=>{
+    if(state.bankFilter!=='all' && q.system!==state.bankFilter) return false;
+    if(state.bankSearch && !q.stem.toLowerCase().includes(state.bankSearch.toLowerCase())) return false;
+    return true;
+  });
+  return `
+    <div class="eyebrow">Shared class bank</div>
+    <h1 class="pagetitle">Question Bank</h1>
+    <p class="lede">Every question here is visible to the whole class. Single-best-answer format: one stem, four options, one keyed answer — matching NPLEX I item style. You can edit or delete only the questions you added.</p>
+    <div class="card">
+      <div class="card-title">${editing?'Edit question':'Add a question'}</div>
+      <form id="qform" data-editing="${editing?editing.id:''}">
+        <div class="formrow"><label class="field-label">Body system</label>
+          <select name="system">${SYSTEMS.map(s=>`<option value="${s.key}" ${editing&&editing.system===s.key?'selected':''}>${s.num} — ${s.label}</option>`).join('')}</select>
+        </div>
+        <div class="formrow"><label class="field-label">Question stem</label><textarea name="stem" placeholder="e.g. A 54-year-old presents with...">${editing?escapeHtml(editing.stem):''}</textarea></div>
+        <div class="grid2">${[0,1,2,3].map(i=>`<div class="formrow"><label class="field-label">Option ${String.fromCharCode(65+i)}</label><input type="text" name="opt${i}" value="${editing?escapeAttr(editing.options[i]):''}" placeholder="Response alternative ${String.fromCharCode(65+i)}"></div>`).join('')}</div>
+        <div class="formrow"><label class="field-label">Correct answer</label><select name="correct">${[0,1,2,3].map(i=>`<option value="${i}" ${editing&&editing.correct===i?'selected':''}>Option ${String.fromCharCode(65+i)}</option>`).join('')}</select></div>
+        <div class="formrow"><label class="field-label">Explanation (shown after answering)</label><textarea name="explanation" placeholder="Why the keyed answer is correct, and why distractors are wrong.">${editing?escapeHtml(editing.explanation||''):''}</textarea></div>
+        <div style="display:flex;gap:10px;"><button type="submit" class="btn teal">${editing?'Save changes':'Add question'}</button>${editing?'<button type="button" class="btn secondary" data-action="cancel-edit">Cancel</button>':''}</div>
+        <div class="errtext" id="qformError"></div>
+      </form>
+    </div>
+    <div class="card">
+      <div class="card-title">Class bank (${state.questions.length} questions)</div>
+      <div class="searchbar">
+        <select id="bankFilterSel" style="max-width:220px;"><option value="all" ${state.bankFilter==='all'?'selected':''}>All systems</option>${SYSTEMS.map(s=>`<option value="${s.key}" ${state.bankFilter===s.key?'selected':''}>${s.label}</option>`).join('')}</select>
+        <input type="text" id="bankSearchInput" placeholder="Search question text…" value="${escapeAttr(state.bankSearch)}">
+        <button class="btn secondary btn-sm" data-action="export-bank">Export JSON</button>
+      </div>
+      ${filtered.length===0?'<div class="empty">No questions match. Add your first question above, or adjust the filter.</div>':`
+      <table><thead><tr><th style="width:70px;">System</th><th>Stem</th><th style="width:130px;">Added by</th><th style="width:110px;"></th></tr></thead><tbody>
+      ${filtered.map(q=>`<tr>
+        <td><span class="chip neutral">${sysNum(q.system)}</span></td>
+        <td>${escapeHtml(q.stem.length>90?q.stem.slice(0,90)+'…':q.stem)}</td>
+        <td class="helptext">${q.createdBy===myId?'You':escapeHtml((q.createdByEmail||'classmate').split('@')[0])}</td>
+        <td>${q.createdBy===myId?`<button class="btn ghost btn-sm" data-action="edit-question" data-id="${q.id}">Edit</button> <button class="btn danger btn-sm" data-action="delete-question" data-id="${q.id}">Delete</button>`:''}</td>
+      </tr>`).join('')}
+      </tbody></table>`}
+    </div>`;
+}
+
+/* =====================================================================
+   VIEW: SYSTEMS
+   ===================================================================== */
+function renderSystems(){
+  const stats = systemStats();
+  return `
+    <div class="eyebrow">NPLEX I biomedical science blueprint</div>
+    <h1 class="pagetitle">Body Systems</h1>
+    <p class="lede">The Part I – Biomedical Science Examination integrates anatomy, physiology, biochemistry &amp; genetics, microbiology &amp; immunology, and pathology across these systems.</p>
+    <div class="card">${SYSTEMS.map(s=>{
+      const count = state.questions.filter(q=>q.system===s.key).length;
+      const st = stats[s.key]; const acc = st.total? Math.round(st.correct/st.total*100):0; const t = tierFor(acc,st.total);
+      return `<div class="sysrow" style="cursor:pointer;" data-action="goto-system" data-key="${s.key}">
+        <span class="sysnum">${s.num}</span>
+        <span class="sysname">${s.label}${s.hint?`<div class="helptext" style="font-weight:400;">${s.hint}</div>`:''}</span>
+        <span class="sysmeta">${count} item${count===1?'':'s'}</span>
+        <span class="sysekg">${ekgSVG(acc,st.total>0)}</span>
+        <span class="systag"><span class="chip ${t.chip}">${t.text}</span></span>
+      </div>`;
+    }).join('')}</div>`;
+}
+
+/* =====================================================================
+   VIEW: TIMED / EXAM SETUP
+   ===================================================================== */
+function renderTimedSetup(){
+  return `
+    <div class="eyebrow">Timed practice</div>
+    <h1 class="pagetitle">Timed Quiz</h1>
+    <p class="lede">Pulls from the shared class bank. NPLEX I paces roughly 1.5 minutes per item — default here is 2 minutes so you have room to reason it out.</p>
+    <div class="card"><form id="timedForm">
+      <div class="formrow"><label class="field-label">Number of questions</label><div class="checkgrid">${[10,20,40].map(n=>`<label class="checkchip"><input type="radio" name="count" value="${n}" ${n===10?'checked':''}> ${n} questions</label>`).join('')}</div></div>
+      <div class="formrow"><label class="field-label">Seconds per question</label><input type="number" name="perQ" value="120" min="15" max="600" style="max-width:140px;"><div class="helptext">~120s ≈ 2 minutes per item.</div></div>
+      <div class="formrow"><label class="field-label">Systems to include</label><div class="checkgrid"><label class="checkchip"><input type="checkbox" name="sysAll" checked> All systems</label>${SYSTEMS.map(s=>`<label class="checkchip sys-individual" style="display:none;"><input type="checkbox" name="sys" value="${s.key}"> ${s.label}</label>`).join('')}</div></div>
+      <button type="submit" class="btn teal" style="margin-top:10px;">Start timed quiz</button>
+    </form></div>`;
+}
+function renderExamSetup(){
+  return `
+    <div class="eyebrow">Full-length simulation</div>
+    <h1 class="pagetitle">Random Exam Generator</h1>
+    <p class="lede">The real NPLEX I Biomedical Science Examination is 200 items across two 2.5-hour sessions (~100 items each). This draws randomly across the whole shared bank.</p>
+    <div class="card"><form id="examForm">
+      <div class="formrow"><label class="field-label">Exam length</label><div class="checkgrid"><label class="checkchip"><input type="radio" name="count" value="50"> 50 questions</label><label class="checkchip"><input type="radio" name="count" value="100" checked> 100 questions (one session)</label><label class="checkchip"><input type="radio" name="count" value="200"> 200 questions (full exam)</label></div></div>
+      <div class="formrow"><label class="field-label">Seconds per question</label><input type="number" name="perQ" value="90" min="15" max="600" style="max-width:140px;"><div class="helptext">NPLEX I paces ~90 seconds/item; adjust freely.</div></div>
+      <button type="submit" class="btn teal" style="margin-top:10px;">Generate random exam</button>
+    </form></div>`;
+}
+
+/* =====================================================================
+   QUIZ ENGINE
+   ===================================================================== */
+function buildQuizQuestions(pool,count){
+  return shuffle(pool).slice(0,count).map(q=>{
+    const idx = shuffle([0,1,2,3]);
+    return { id:q.id, system:q.system, stem:q.stem, explanation:q.explanation||'', options: idx.map(i=>q.options[i]), correct: idx.indexOf(q.correct) };
+  });
+}
+function startQuiz(mode,pool,count,perQ){
+  const questions = buildQuizQuestions(pool,count);
+  state.quiz = { mode, perQ, questions, index:0, answers: questions.map(()=>({chosenIndex:null,timedOut:false})), remaining:perQ, timerId:null };
+  state.view='quiz'; render(); startTimer();
+}
+function startTimer(){
+  clearInterval(state.quiz.timerId);
+  state.quiz.timerId = setInterval(()=>{
+    state.quiz.remaining--;
+    const el = document.getElementById('quizTimerText'); const box = document.getElementById('quizTimerBox');
+    if(el) el.textContent = fmtTime(state.quiz.remaining);
+    if(box) box.classList.toggle('low', state.quiz.remaining<=15);
+    if(state.quiz.remaining<=0){ state.quiz.answers[state.quiz.index].timedOut = true; advanceQuestion(); }
+  },1000);
+}
+function fmtTime(s){ s=Math.max(0,s); const m=Math.floor(s/60), sec=s%60; return String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0'); }
+async function advanceQuestion(){
+  clearInterval(state.quiz.timerId);
+  if(state.quiz.index < state.quiz.questions.length-1){ state.quiz.index++; state.quiz.remaining=state.quiz.perQ; render(); startTimer(); }
+  else { await finishQuiz(); }
+}
+async function finishQuiz(){
+  clearInterval(state.quiz.timerId);
+  const qs = state.quiz.questions, ans = state.quiz.answers;
+  let correctCount = 0;
+  const recorded = qs.map((q,i)=>{
+    const chosen = ans[i].chosenIndex; const isCorrect = chosen===q.correct; if(isCorrect) correctCount++;
+    return { qId:q.id, system:q.system, stem:q.stem, options:q.options, explanation:q.explanation, chosenIndex:chosen, correctIndex:q.correct, correct:isCorrect, timedOut:ans[i].timedOut };
+  });
+  const {data,error} = await sb.from('attempts').insert({ user_id: state.session.user.id, mode: state.quiz.mode, per_q: state.quiz.perQ, total: qs.length, correct: correctCount, questions: recorded }).select().single();
+  if(error){ alert('Could not save this attempt: '+error.message); }
+  const attempt = data ? rowToAttempt(data) : { id:'local-'+Date.now(), mode:state.quiz.mode, perQ:state.quiz.perQ, total:qs.length, correct:correctCount, questions:recorded, date:Date.now() };
+  state.attempts.push(attempt);
+  state.quiz.result = attempt; state.quiz.reviewDraft = {};
+  state.view='results'; render();
+}
+function renderQuizRunner(){
+  const quiz = state.quiz; const q = quiz.questions[quiz.index]; const ans = quiz.answers[quiz.index];
+  return `
+    <div class="quizbar"><div><div class="eyebrow">${quiz.mode==='exam'?'Random exam':'Timed quiz'} · Question ${quiz.index+1} of ${quiz.questions.length}</div><div class="helptext">${sysLabel(q.system)}</div></div><div class="timerbox" id="quizTimerBox"><span id="quizTimerText">${fmtTime(quiz.remaining)}</span></div></div>
+    <div class="qcard"><div class="stem">${escapeHtml(q.stem)}</div><div class="optlist">${q.options.map((opt,i)=>`<button class="optbtn ${ans.chosenIndex===i?'selected':''}" data-action="select-option" data-idx="${i}"><span class="optkey">${String.fromCharCode(65+i)}</span><span>${escapeHtml(opt)}</span></button>`).join('')}</div></div>
+    <div style="display:flex;justify-content:flex-end;"><button class="btn teal" data-action="next-question">${quiz.index<quiz.questions.length-1?'Next question':'Finish'}</button></div>`;
+}
+
+/* =====================================================================
+   VIEW: RESULTS + REVIEW CAPTURE
+   ===================================================================== */
+function renderResults(){
+  const r = state.quiz.result; const pct = Math.round(r.correct/r.total*100);
+  const bySys = {}; r.questions.forEach(q=>{ if(!bySys[q.system]) bySys[q.system]={correct:0,total:0}; bySys[q.system].total++; if(q.correct) bySys[q.system].correct++; });
+  const missed = r.questions.filter(q=>!q.correct);
+  return `
+    <div class="eyebrow">${r.mode==='exam'?'Random exam':'Timed quiz'} complete</div>
+    <h1 class="pagetitle">Results</h1>
+    <div class="card"><div class="stat-hero"><div><div class="stat-big">${pct}%</div><div class="stat-label">Score</div></div><div><div class="stat-big">${r.correct}/${r.total}</div><div class="stat-label">Correct</div></div><div><div class="stat-big">${missed.length}</div><div class="stat-label">Missed</div></div></div></div>
+    <div class="card"><div class="card-title">By system</div>${Object.keys(bySys).map(k=>{ const s=bySys[k]; const acc=Math.round(s.correct/s.total*100); return `<div class="sysrow"><span class="sysname">${sysLabel(k)}</span><span class="sysmeta">${s.correct}/${s.total}</span><span class="sysekg">${ekgSVG(acc,true)}</span></div>`; }).join('')}</div>
+    ${missed.length===0?`<div class="card"><div class="empty">Perfect run — nothing to log. Nice work.</div></div>`:`<div class="card"><div class="card-title">Log your missed questions</div><p class="helptext" style="margin-bottom:14px;">For each miss, catalog what went wrong. This becomes your searchable gap log.</p>${missed.map((q,i)=>renderMissedItem(q,i)).join('')}</div>`}
+    <button class="btn secondary" data-action="nav" data-view="dashboard">Back to dashboard</button>`;
+}
+function renderMissedItem(q,idx){
+  const draft = state.quiz.reviewDraft[idx] || {confidence:null,clue:'',fact:'',why:''};
+  const saved = state.quiz.reviewDraft[idx] && state.quiz.reviewDraft[idx].saved;
+  return `<div class="qcard" data-review-idx="${idx}">
+    <div class="helptext" style="margin-bottom:6px;">${sysLabel(q.system)}</div>
+    <div class="stem">${escapeHtml(q.stem)}</div>
+    <div class="optlist" style="margin-bottom:14px;">${q.options.map((opt,i)=>{ let cls=''; if(i===q.correctIndex) cls='correct'; else if(i===q.chosenIndex) cls='incorrect';
+      return `<div class="optbtn ${cls}" style="cursor:default;"><span class="optkey">${String.fromCharCode(65+i)}</span><span>${escapeHtml(opt)}</span>${i===q.correctIndex?' <span class="chip teal" style="margin-left:auto;">Correct</span>':''}${i===q.chosenIndex&&i!==q.correctIndex?' <span class="chip coral" style="margin-left:auto;">Your answer</span>':''}</div>`; }).join('')}
+      ${q.chosenIndex===null?'<div class="helptext">No answer selected — time ran out.</div>':''}</div>
+    ${q.explanation?`<div class="helptext" style="margin-bottom:14px;"><strong>Explanation:</strong> ${escapeHtml(q.explanation)}</div>`:''}
+    ${saved?`<div class="chip teal">Gap logged ✓</div>`:`
+    <div class="formrow"><label class="field-label">How did you approach this?</label><div class="confbtns">${['understood','guessed','unknown'].map(c=>`<button type="button" class="confbtn ${draft.confidence===c?'selected':''}" data-action="set-confidence" data-idx="${idx}" data-conf="${c}">${CONF_LABELS[c]}</button>`).join('')}</div></div>
+    <div class="formrow"><label class="field-label">The clue I missed</label><textarea data-idx="${idx}" data-field="clue" placeholder="What detail in the stem pointed to the right answer?">${escapeHtml(draft.clue)}</textarea></div>
+    <div class="formrow"><label class="field-label">The fact I didn't know</label><textarea data-idx="${idx}" data-field="fact" placeholder="What knowledge gap caused this?">${escapeHtml(draft.fact)}</textarea></div>
+    <div class="formrow"><label class="field-label">Why I picked the wrong answer</label><textarea data-idx="${idx}" data-field="why" placeholder="What reasoning led you astray?">${escapeHtml(draft.why)}</textarea></div>
+    <button class="btn teal btn-sm" data-action="save-review" data-idx="${idx}">Save to review log</button>`}
+  </div>`;
+}
+
+/* =====================================================================
+   VIEW: REVIEW LOG
+   ===================================================================== */
+function renderReviewLog(){
+  const filtered = state.reviews.filter(r=>{
+    if(state.reviewFilterSystem!=='all' && r.system!==state.reviewFilterSystem) return false;
+    if(state.reviewFilterConf!=='all' && r.confidence!==state.reviewFilterConf) return false;
+    return true;
+  }).slice().reverse();
+  return `
+    <div class="eyebrow">Close the gap</div>
+    <h1 class="pagetitle">Review Log</h1>
+    <p class="lede">Every missed question you've catalogued — private to you.</p>
+    <div class="card">
+      <div class="searchbar">
+        <select id="revFilterSys"><option value="all">All systems</option>${SYSTEMS.map(s=>`<option value="${s.key}" ${state.reviewFilterSystem===s.key?'selected':''}>${s.label}</option>`).join('')}</select>
+        <select id="revFilterConf"><option value="all">All confidence levels</option>${Object.keys(CONF_LABELS).map(k=>`<option value="${k}" ${state.reviewFilterConf===k?'selected':''}>${CONF_LABELS[k]}</option>`).join('')}</select>
+      </div>
+      ${filtered.length===0?'<div class="empty">No logged gaps match this filter yet.</div>':filtered.map(r=>`
+        <div class="qcard"><div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span class="chip neutral">${sysLabel(r.system)}</span><span class="chip ${r.confidence==='understood'?'teal':r.confidence==='guessed'?'amber':'coral'}">${CONF_LABELS[r.confidence]}</span></div>
+        <div class="stem">${escapeHtml(r.stem)}</div><hr class="hair">
+        <div style="font-size:13px;"><strong>Clue missed:</strong> ${escapeHtml(r.clueMissed)||'<span class="helptext">—</span>'}</div>
+        <div style="font-size:13px;margin-top:6px;"><strong>Fact I didn't know:</strong> ${escapeHtml(r.factUnknown)||'<span class="helptext">—</span>'}</div>
+        <div style="font-size:13px;margin-top:6px;"><strong>Why I picked wrong:</strong> ${escapeHtml(r.whyWrong)||'<span class="helptext">—</span>'}</div>
+        <div style="margin-top:10px;"><button class="btn danger btn-sm" data-action="delete-review" data-id="${r.id}">Delete entry</button></div></div>
+      `).join('')}
+    </div>`;
+}
+
+/* =====================================================================
+   VIEW: SETTINGS
+   ===================================================================== */
+function renderSettings(){
+  return `
+    <div class="eyebrow">Data</div>
+    <h1 class="pagetitle">Data &amp; Reset Options</h1>
+    <p class="lede">Your quiz history and review log are private to your account. The question bank is shared with the whole class.</p>
+    <div class="card"><div class="card-title">Reset progress</div><p class="helptext" style="margin-bottom:12px;">Clears your own quiz attempts and mastery data.</p><button class="btn danger" data-action="reset-progress">Reset my progress</button></div>
+    <div class="card"><div class="card-title">Clear review log</div><p class="helptext" style="margin-bottom:12px;">Deletes your catalogued gap entries.</p><button class="btn danger" data-action="reset-reviews">Clear my review log</button></div>
+    <div class="card"><div class="card-title">Remove my questions</div><p class="helptext" style="margin-bottom:12px;">Deletes only the questions you personally added to the shared bank.</p><button class="btn danger" data-action="reset-bank">Remove my questions</button></div>
+    <button class="btn secondary" data-action="nav" data-view="dashboard">Back to dashboard</button>`;
+}
+
+/* =====================================================================
+   EVENT HANDLING
+   ===================================================================== */
+document.addEventListener('click', async (e)=>{
+  const t = e.target.closest('[data-action]'); if(!t) return;
+  const action = t.dataset.action;
+
+  if(action==='nav'){ state.view=t.dataset.view; render(); return; }
+  if(action==='open-settings'){ state.view='settings'; render(); return; }
+  if(action==='sign-out'){ await sb.auth.signOut(); state.session=null; showAuthScreen(); return; }
+
+  if(action==='edit-question'){ state.editingId=t.dataset.id; state.view='bank'; render(); window.scrollTo(0,0); return; }
+  if(action==='cancel-edit'){ state.editingId=null; render(); return; }
+  if(action==='delete-question'){
+    if(confirm('Delete this question permanently?')){
+      const {error} = await sb.from('questions').delete().eq('id', t.dataset.id);
+      if(error){ alert(error.message); return; }
+      state.questions = state.questions.filter(q=>q.id!==t.dataset.id); render();
+    }
+    return;
+  }
+  if(action==='goto-system'){ state.bankFilter=t.dataset.key; state.view='bank'; render(); return; }
+
+  if(action==='export-bank'){
+    const blob = new Blob([JSON.stringify(state.questions,null,2)],{type:'application/json'});
+    const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='systemcheck-question-bank.json'; a.click(); URL.revokeObjectURL(url);
+    return;
+  }
+
+  if(action==='reset-progress'){ if(confirm('Delete all of your quiz attempts and mastery data?')){ await sb.from('attempts').delete().eq('user_id', state.session.user.id); state.attempts=[]; render(); } return; }
+  if(action==='reset-reviews'){ if(confirm('Delete your entire review log?')){ await sb.from('reviews').delete().eq('user_id', state.session.user.id); state.reviews=[]; render(); } return; }
+  if(action==='reset-bank'){ if(confirm('Delete every question you personally added? This cannot be undone.')){ await sb.from('questions').delete().eq('created_by', state.session.user.id); state.questions = state.questions.filter(q=>q.createdBy!==state.session.user.id); state.view='dashboard'; render(); } return; }
+
+  if(action==='select-option'){ state.quiz.answers[state.quiz.index].chosenIndex = parseInt(t.dataset.idx,10); render(); return; }
+  if(action==='next-question'){ await advanceQuestion(); return; }
+
+  if(action==='set-confidence'){
+    const idx=t.dataset.idx; if(!state.quiz.reviewDraft[idx]) state.quiz.reviewDraft[idx]={confidence:null,clue:'',fact:'',why:''};
+    state.quiz.reviewDraft[idx].confidence = t.dataset.conf; render(); return;
+  }
+  if(action==='save-review'){
+    const idx=t.dataset.idx; const draft = state.quiz.reviewDraft[idx]||{};
+    if(!draft.confidence){ alert('Choose Did not know / Guessed / Understood first.'); return; }
+    const q = state.quiz.result.questions[idx];
+    const {data,error} = await sb.from('reviews').insert({ user_id: state.session.user.id, system:q.system, stem:q.stem, options:q.options, chosen_index:q.chosenIndex, correct_index:q.correctIndex, explanation:q.explanation, confidence:draft.confidence, clue_missed:draft.clue||'', fact_unknown:draft.fact||'', why_wrong:draft.why||'' }).select().single();
+    if(error){ alert('Could not save: '+error.message); return; }
+    state.reviews.push(rowToReview(data)); draft.saved = true; render(); return;
+  }
+  if(action==='delete-review'){
+    const {error} = await sb.from('reviews').delete().eq('id', t.dataset.id);
+    if(error){ alert(error.message); return; }
+    state.reviews = state.reviews.filter(r=>r.id!==t.dataset.id); render(); return;
+  }
+});
+
+document.addEventListener('input', (e)=>{
+  if(e.target.matches('[data-idx][data-field]')){
+    const idx=e.target.dataset.idx, field=e.target.dataset.field;
+    if(!state.quiz.reviewDraft[idx]) state.quiz.reviewDraft[idx]={confidence:null,clue:'',fact:'',why:''};
+    state.quiz.reviewDraft[idx][field] = e.target.value; return;
+  }
+  if(e.target.id==='bankSearchInput'){ state.bankSearch=e.target.value; renderBankPreserveFocus(); return; }
+  if(e.target.id==='bankFilterSel'){ state.bankFilter=e.target.value; render(); return; }
+  if(e.target.id==='revFilterSys'){ state.reviewFilterSystem=e.target.value; render(); return; }
+  if(e.target.id==='revFilterConf'){ state.reviewFilterConf=e.target.value; render(); return; }
+  if(e.target.name==='sysAll'){ document.querySelectorAll('.sys-individual').forEach(el=>el.style.display = e.target.checked?'none':'flex'); return; }
+});
+function renderBankPreserveFocus(){
+  const active = document.activeElement; const cursorPos = active && active.selectionStart;
+  render();
+  const el = document.getElementById('bankSearchInput');
+  if(el){ el.focus(); if(cursorPos!=null) el.setSelectionRange(cursorPos,cursorPos); }
+}
+
+document.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  if(e.target.id==='qform'){
+    const f = e.target; const opts = [0,1,2,3].map(i=>f['opt'+i].value.trim());
+    const errEl = document.getElementById('qformError');
+    if(opts.some(o=>!o) || !f.stem.value.trim()){ errEl.textContent='Please fill in the stem and all four options.'; return; }
+    const payload = { system:f.system.value, stem:f.stem.value.trim(), options:opts, correct:parseInt(f.correct.value,10), explanation:f.explanation.value.trim() };
+    const editingId = f.dataset.editing;
+    if(editingId){
+      const {error} = await sb.from('questions').update(payload).eq('id', editingId);
+      if(error){ errEl.textContent = error.message; return; }
+      const q = state.questions.find(q=>q.id===editingId); Object.assign(q,payload); state.editingId=null;
+    } else {
+      const {data,error} = await sb.from('questions').insert({ ...payload, created_by: state.session.user.id, created_by_email: state.session.user.email }).select().single();
+      if(error){ errEl.textContent = error.message; return; }
+      state.questions.push(rowToQuestion(data));
+    }
+    render(); return;
+  }
+  if(e.target.id==='timedForm'){
+    const f = e.target; const count = parseInt(f.count.value,10); const perQ = parseInt(f.perQ.value,10)||120;
+    const sysAll = f.sysAll.checked;
+    let systems = sysAll ? SYSTEMS.map(s=>s.key) : Array.from(f.querySelectorAll('input[name=sys]:checked')).map(el=>el.value);
+    if(systems.length===0) systems = SYSTEMS.map(s=>s.key);
+    const pool = state.questions.filter(q=>systems.includes(q.system));
+    if(pool.length===0){ alert('No questions in the bank for the selected systems.'); return; }
+    const actualCount = Math.min(count,pool.length);
+    if(actualCount<count && !confirm(`Only ${pool.length} question(s) available for this selection. Start a ${actualCount}-question quiz instead?`)) return;
+    startQuiz('timed',pool,actualCount,perQ); return;
+  }
+  if(e.target.id==='examForm'){
+    const f = e.target; const count = parseInt(f.count.value,10); const perQ = parseInt(f.perQ.value,10)||90;
+    const pool = state.questions;
+    if(pool.length===0){ alert('The question bank is empty. Add questions first.'); return; }
+    const actualCount = Math.min(count,pool.length);
+    if(actualCount<count && !confirm(`Only ${pool.length} question(s) in the bank. Start a ${actualCount}-question exam instead?`)) return;
+    startQuiz('exam',pool,actualCount,perQ); return;
+  }
+});
+
+/* =====================================================================
+   INIT
+   ===================================================================== */
+(async function init(){
+  const { data:{session} } = await sb.auth.getSession();
+  if(session){ state.session = session; await loadAll(); showMainApp(); }
+  else { showAuthScreen(); }
+})();
+</script>
+</body>
+</html>
