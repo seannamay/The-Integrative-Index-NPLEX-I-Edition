@@ -409,9 +409,15 @@ function renderDashboard(){
         }).join('')}
         ${!totalReviews?'<div class="helptext">Log a gap from your quiz results to start tracking this.</div>':''}
       </div>
-      <div class="card"><div class="card-title">Recent attempts</div>
-        ${state.attempts.length? state.attempts.slice(-6).reverse().map(a=>{ const pct=Math.round(a.correct/a.total*100);
-          return `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;"><span>${a.mode==='exam'?'Random exam':'Timed quiz'} · ${a.total}Q</span><span class="chip ${pct>=85?'teal':pct>=70?'amber':'coral'}">${pct}%</span></div>`;
+      <div class="card"><div class="card-title">Attempt history (${state.attempts.length})</div>
+        ${state.attempts.length? state.attempts.slice().reverse().map(a=>{ const pct=Math.round(a.correct/a.total*100);
+          return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;">
+            <span>${a.mode==='exam'?'Random exam':'Timed quiz'} · ${a.total}Q</span>
+            <span style="display:flex;align-items:center;gap:8px;">
+              <span class="chip ${pct>=85?'teal':pct>=70?'amber':'coral'}">${pct}%</span>
+              <button class="btn danger btn-sm" data-action="delete-attempt" data-id="${a.id}" title="Delete this attempt">Delete</button>
+            </span>
+          </div>`;
         }).join('') : '<div class="helptext">No attempts yet — run a timed quiz to begin.</div>'}
       </div>
     </div>`;
@@ -800,6 +806,15 @@ document.addEventListener('click', async (e)=>{
     return;
   }
 
+  if(action==='delete-attempt'){
+    if(confirm('Delete this quiz attempt? It will be removed from your dashboard and mastery stats.')){
+      const {error} = await sb.from('attempts').delete().eq('id', t.dataset.id);
+      if(error){ alert(error.message); return; }
+      state.attempts = state.attempts.filter(a=>a.id!==t.dataset.id);
+      render();
+    }
+    return;
+  }
   if(action==='reset-progress'){ if(confirm('Delete all of your quiz attempts and mastery data?')){ await sb.from('attempts').delete().eq('user_id', state.session.user.id); state.attempts=[]; render(); } return; }
   if(action==='reset-reviews'){ if(confirm('Delete your entire review log?')){ await sb.from('reviews').delete().eq('user_id', state.session.user.id); state.reviews=[]; render(); } return; }
   if(action==='reset-bank'){ if(confirm('Delete every question you personally added? This cannot be undone.')){ await sb.from('questions').delete().eq('created_by', state.session.user.id); state.questions = state.questions.filter(q=>q.createdBy!==state.session.user.id); state.view='dashboard'; render(); } return; }
