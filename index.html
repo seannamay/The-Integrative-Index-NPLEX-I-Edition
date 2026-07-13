@@ -82,10 +82,15 @@
   .qcard{border:1px solid var(--line);border-radius:8px;padding:16px 18px;margin-bottom:12px;background:#fff;}
   .qcard .stem{font-size:14.5px;margin-bottom:12px;}
   .optlist{display:flex;flex-direction:column;gap:8px;}
-  .optbtn{text-align:left;padding:11px 13px;border:1px solid var(--line-strong);border-radius:7px;background:#fff;font-size:14px;display:flex;gap:10px;align-items:flex-start;}
+  .optrow{display:flex;gap:6px;}
+  .optbtn{text-align:left;padding:11px 13px;border:1px solid var(--line-strong);border-radius:7px;background:#fff;font-size:14px;display:flex;gap:10px;align-items:flex-start;flex:1;min-width:0;}
   .optbtn:hover{border-color:var(--teal);} .optbtn.selected{border-color:var(--ink);background:var(--paper);}
   .optbtn .optkey{font-family:var(--font-mono);font-weight:600;color:var(--ink-soft);flex-shrink:0;}
   .optbtn.correct{border-color:var(--teal);background:var(--teal-soft);} .optbtn.incorrect{border-color:var(--coral);background:var(--coral-soft);}
+  .optbtn.struck{opacity:.4;text-decoration:line-through;cursor:not-allowed;}
+  .strike-btn{flex-shrink:0;width:38px;border-radius:7px;border:1px solid var(--line-strong);background:#fff;color:var(--ink-soft);font-size:14px;}
+  .strike-btn:hover{border-color:var(--coral);color:var(--coral);}
+  .strike-btn.active{background:var(--coral-soft);color:var(--coral);border-color:var(--coral);}
   .quizbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--line);}
   .quiz-nextrow{display:flex;justify-content:flex-end;}
   .timerbox{font-family:var(--font-mono);font-size:22px;font-weight:600;padding:6px 14px;border-radius:7px;background:var(--paper);}
@@ -528,7 +533,7 @@ function buildQuizQuestions(pool,count){
 }
 function startQuiz(mode,pool,count,perQ){
   const questions = buildQuizQuestions(pool,count);
-  state.quiz = { mode, perQ, questions, index:0, answers: questions.map(()=>({chosenIndex:null,timedOut:false})), remaining:perQ, timerId:null };
+  state.quiz = { mode, perQ, questions, index:0, answers: questions.map(()=>({chosenIndex:null,timedOut:false,eliminated:[]})), remaining:perQ, timerId:null, resultsShowAll:false };
   state.navOpen = false;
   state.view='quiz'; render(); startTimer();
 }
@@ -565,13 +570,23 @@ async function finishQuiz(){
 }
 function renderQuizRunner(){
   const quiz = state.quiz; const q = quiz.questions[quiz.index]; const ans = quiz.answers[quiz.index];
+  const eliminated = ans.eliminated || [];
+  const myId = state.session.user.id;
+  const myFlag = flagsFor(q.id).find(f=>f.flaggedBy===myId);
   return `
     <div class="quizbar"><div><div class="eyebrow">${quiz.mode==='exam'?'Random exam':'Timed quiz'} · Question ${quiz.index+1} of ${quiz.questions.length}</div><div class="helptext">${sysLabel(q.system)}</div></div><div class="timerbox" id="quizTimerBox"><span id="quizTimerText">${fmtTime(quiz.remaining)}</span></div></div>
-    <div style="display:flex;gap:8px;margin-bottom:14px;">
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
       <button class="btn ghost btn-sm" data-action="end-quiz-early">End quiz now</button>
       <button class="btn danger btn-sm" data-action="cancel-quiz">Cancel</button>
+      ${myFlag?`<button class="btn warn btn-sm" data-action="unflag-question" data-id="${myFlag.id}">Unflag question</button>`:`<button class="btn ghost btn-sm" data-action="flag-question" data-id="${q.id}">Flag question</button>`}
     </div>
-    <div class="qcard"><div class="stem">${escapeHtml(q.stem)}</div><div class="optlist">${q.options.map((opt,i)=>`<button class="optbtn ${ans.chosenIndex===i?'selected':''}" data-action="select-option" data-idx="${i}"><span class="optkey">${String.fromCharCode(65+i)}</span><span>${escapeHtml(opt)}</span></button>`).join('')}</div></div>
+    <div class="qcard"><div class="stem">${escapeHtml(q.stem)}</div><div class="optlist">${q.options.map((opt,i)=>{
+      const struck = eliminated.includes(i);
+      return `<div class="optrow">
+        <button class="optbtn ${ans.chosenIndex===i?'selected':''} ${struck?'struck':''}" data-action="select-option" data-idx="${i}" ${struck?'disabled':''}><span class="optkey">${String.fromCharCode(65+i)}</span><span>${escapeHtml(opt)}</span></button>
+        <button class="strike-btn ${struck?'active':''}" data-action="toggle-strike" data-idx="${i}" title="${struck?'Restore this option':'Cross out this option'}">${struck?'↺':'✕'}</button>
+      </div>`;
+    }).join('')}</div></div>
     <div class="quiz-nextrow"><button class="btn teal" data-action="next-question">${quiz.index<quiz.questions.length-1?'Next question':'Finish'}</button></div>`;
 }
 
@@ -579,30 +594,46 @@ function renderResults(){
   const r = state.quiz.result; const pct = Math.round(r.correct/r.total*100);
   const bySys = {}; r.questions.forEach(q=>{ if(!bySys[q.system]) bySys[q.system]={correct:0,total:0}; bySys[q.system].total++; if(q.correct) bySys[q.system].correct++; });
   const missed = r.questions.filter(q=>!q.correct);
+  const showAll = !!state.quiz.resultsShowAll;
+  const listed = showAll ? r.questions : missed;
   return `
     <div class="eyebrow">${r.mode==='exam'?'Random exam':'Timed quiz'} complete</div>
     <h1 class="pagetitle">Results</h1>
     <div class="card"><div class="stat-hero"><div><div class="stat-big">${pct}%</div><div class="stat-label">Score</div></div><div><div class="stat-big">${r.correct}/${r.total}</div><div class="stat-label">Correct</div></div><div><div class="stat-big">${missed.length}</div><div class="stat-label">Missed</div></div></div></div>
     <div class="card"><div class="card-title">By system</div>${Object.keys(bySys).map(k=>{ const s=bySys[k]; const acc=Math.round(s.correct/s.total*100); return `<div class="sysrow"><span class="sysname">${sysLabel(k)}</span><span class="sysmeta">${s.correct}/${s.total}</span><span class="sysekg">${ekgSVG(acc,true)}</span></div>`; }).join('')}</div>
-    ${missed.length===0?`<div class="card"><div class="empty">Perfect run — nothing to log. Nice work.</div></div>`:`<div class="card"><div class="card-title">Log your missed questions</div><p class="helptext" style="margin-bottom:14px;">For each miss, catalog what went wrong. This becomes your searchable gap log.</p>${missed.map((q,i)=>renderMissedItem(q,i)).join('')}</div>`}
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+        <div class="card-title" style="margin:0;">${showAll?'All questions':'Log your missed questions'}</div>
+        <button class="btn ghost btn-sm" data-action="toggle-results-view">${showAll?'Show missed only':'Review all questions'}</button>
+      </div>
+      ${!showAll?'<p class="helptext" style="margin:-8px 0 14px 0;">For each miss, catalog what went wrong. This becomes your searchable gap log.</p>':''}
+      ${listed.length===0?'<div class="empty">Perfect run — nothing missed.</div>':listed.map(q=>renderResultItem(q, r.questions.indexOf(q))).join('')}
+    </div>
     <button class="btn secondary" data-action="nav" data-view="dashboard">Back to dashboard</button>`;
 }
-function renderMissedItem(q,idx){
+function renderResultItem(q,idx){
+  const isCorrect = q.correct;
+  const myId = state.session.user.id;
+  const myFlag = flagsFor(q.qId).find(f=>f.flaggedBy===myId);
   const draft = state.quiz.reviewDraft[idx] || {confidence:null,clue:'',fact:'',why:''};
   const saved = state.quiz.reviewDraft[idx] && state.quiz.reviewDraft[idx].saved;
   return `<div class="qcard" data-review-idx="${idx}">
-    <div class="helptext" style="margin-bottom:6px;">${sysLabel(q.system)}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <div class="helptext">${sysLabel(q.system)}</div>
+      <span class="chip ${isCorrect?'teal':'coral'}">${isCorrect?'Correct':'Missed'}</span>
+    </div>
     <div class="stem">${escapeHtml(q.stem)}</div>
     <div class="optlist" style="margin-bottom:14px;">${q.options.map((opt,i)=>{ let cls=''; if(i===q.correctIndex) cls='correct'; else if(i===q.chosenIndex) cls='incorrect';
       return `<div class="optbtn ${cls}" style="cursor:default;"><span class="optkey">${String.fromCharCode(65+i)}</span><span>${escapeHtml(opt)}</span>${i===q.correctIndex?' <span class="chip teal" style="margin-left:auto;">Correct</span>':''}${i===q.chosenIndex&&i!==q.correctIndex?' <span class="chip coral" style="margin-left:auto;">Your answer</span>':''}</div>`; }).join('')}
       ${q.chosenIndex===null?'<div class="helptext">No answer selected — time ran out.</div>':''}</div>
     ${q.explanation?`<div class="helptext" style="margin-bottom:14px;"><strong>Explanation:</strong> ${escapeHtml(q.explanation)}</div>`:''}
-    ${saved?`<div class="chip teal">Gap logged ✓</div>`:`
+    <div style="margin-bottom:${isCorrect?'0':'14px'};">${myFlag?`<button class="btn warn btn-sm" data-action="unflag-question" data-id="${myFlag.id}">Unflag question</button>`:`<button class="btn ghost btn-sm" data-action="flag-question" data-id="${q.qId}">Flag this question</button>`}</div>
+    ${isCorrect?'':(saved?`<div class="chip teal">Gap logged ✓</div>`:`
     <div class="formrow"><label class="field-label">How did you approach this?</label><div class="confbtns">${['understood','guessed','unknown'].map(c=>`<button type="button" class="confbtn ${draft.confidence===c?'selected':''}" data-action="set-confidence" data-idx="${idx}" data-conf="${c}">${CONF_LABELS[c]}</button>`).join('')}</div></div>
     <div class="formrow"><label class="field-label">The clue I missed</label><textarea data-idx="${idx}" data-field="clue" placeholder="What detail in the stem pointed to the right answer?">${escapeHtml(draft.clue)}</textarea></div>
     <div class="formrow"><label class="field-label">The fact I didn't know</label><textarea data-idx="${idx}" data-field="fact" placeholder="What knowledge gap caused this?">${escapeHtml(draft.fact)}</textarea></div>
     <div class="formrow"><label class="field-label">Why I picked the wrong answer</label><textarea data-idx="${idx}" data-field="why" placeholder="What reasoning led you astray?">${escapeHtml(draft.why)}</textarea></div>
-    <button class="btn teal btn-sm" data-action="save-review" data-idx="${idx}">Save to review log</button>`}
+    <button class="btn teal btn-sm" data-action="save-review" data-idx="${idx}">Save to review log</button>`)}
   </div>`;
 }
 
@@ -718,7 +749,7 @@ function renderAbout(){
 
     <div class="card">
       <div class="card-title">Feedback, corrections &amp; data requests</div>
-      <p>To flag an incorrect or unclear question, use the Flag button next to it in the Question Bank. To suggest a feature or report a bug, use the Feedback &amp; Requests page. For anything else — including requesting deletion of your account or contributed content — contact <strong>[seanna.vanbrunt@nunm.edu]</strong>.</p>
+      <p>To flag an incorrect or unclear question, use the Flag button next to it in the Question Bank. To suggest a feature or report a bug, use the Feedback &amp; Requests page. For anything else — including requesting deletion of your account or contributed content — contact <strong>[replace with your contact email]</strong>.</p>
     </div>
   `;
 }
@@ -821,6 +852,16 @@ document.addEventListener('click', async (e)=>{
 
   if(action==='select-option'){ state.quiz.answers[state.quiz.index].chosenIndex = parseInt(t.dataset.idx,10); render(); return; }
   if(action==='next-question'){ await advanceQuestion(); return; }
+  if(action==='toggle-strike'){
+    const idx = parseInt(t.dataset.idx,10);
+    const ans = state.quiz.answers[state.quiz.index];
+    if(!ans.eliminated) ans.eliminated = [];
+    const pos = ans.eliminated.indexOf(idx);
+    if(pos>=0){ ans.eliminated.splice(pos,1); }
+    else { ans.eliminated.push(idx); if(ans.chosenIndex===idx) ans.chosenIndex=null; }
+    render(); return;
+  }
+  if(action==='toggle-results-view'){ state.quiz.resultsShowAll = !state.quiz.resultsShowAll; render(); return; }
   if(action==='cancel-quiz'){
     if(confirm('Cancel this quiz? Your progress will not be saved and no score will be recorded.')){
       clearInterval(state.quiz.timerId);
