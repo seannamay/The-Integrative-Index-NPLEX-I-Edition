@@ -299,17 +299,20 @@ function overallStats(){
   return {correct,total,pct: total? Math.round(correct/total*100):null};
 }
 function tierFor(accuracy,total){
-  if(total<5) return {tier:'new',chip:'neutral',text:'Building data'};
-  if(accuracy>=85) return {tier:'strong',chip:'teal',text:'Strong'};
-  if(accuracy>=70) return {tier:'developing',chip:'amber',text:'Developing'};
-  return {tier:'risk',chip:'coral',text:'At risk'};
+  if(total<10) return {tier:'new',chip:'neutral',text:'Building data',confidence:'none'};
+  const conf = total<20 ? 'low' : 'solid';
+  const suffix = conf==='low' ? ' (early)' : '';
+  if(accuracy>=85) return {tier:'strong',chip:'teal',text:'Strong'+suffix,confidence:conf};
+  if(accuracy>=70) return {tier:'developing',chip:'amber',text:'Developing'+suffix,confidence:conf};
+  return {tier:'risk',chip:'coral',text:'At risk'+suffix,confidence:conf};
 }
-function ekgSVG(accuracy,hasData,width){
+function ekgSVG(accuracy,hasData,width,confidence){
   width = width || 260; const h=40, mid=h/2;
   const peak = hasData ? 4 + (accuracy/100)*26 : 3;
   const color = !hasData ? '#B9C1B5' : (accuracy>=85?'#1F6F5C':accuracy>=70?'#A8701A':'#AE3A2E');
+  const lowConf = hasData && confidence==='low';
   const p = [[0,mid],[width*0.28,mid],[width*0.34,mid-peak*0.35],[width*0.40,mid+peak],[width*0.46,mid-peak*0.6],[width*0.52,mid],[width,mid]].map(pt=>pt.join(',')).join(' ');
-  return `<svg width="${width}" height="${h}" viewBox="0 0 ${width} ${h}" preserveAspectRatio="none"><polyline points="${p}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+  return `<svg width="${width}" height="${h}" viewBox="0 0 ${width} ${h}" preserveAspectRatio="none"><polyline points="${p}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"${lowConf?' stroke-dasharray="4 3" opacity="0.55"':''}/></svg>`;
 }
 function flagsFor(questionId){ return state.flags.filter(f=>f.questionId===questionId); }
 function feedbackVotesFor(feedbackId){ return state.feedbackVotes.filter(v=>v.feedbackId===feedbackId); }
@@ -403,8 +406,9 @@ function renderDashboard(){
     </div></div>
     ${atRisk.length?`<div class="notice"><strong>${atRisk.length} system${atRisk.length>1?'s':''} at risk:</strong> ${atRisk.map(s=>s.label).join(', ')} — accuracy is below 70% over 5+ questions.</div>`:''}
     <div class="card"><div class="card-title">System mastery</div>
+      <p class="helptext" style="margin-top:-8px;margin-bottom:14px;">Dashed, faded lines mean fewer than 20 attempts on that system — treat it as an early read, not a firm result.</p>
       ${SYSTEMS.map(s=>{ const st=stats[s.key]; const acc = st.total? Math.round(st.correct/st.total*100):0; const t=tierFor(acc,st.total);
-        return `<div class="sysrow"><span class="sysnum">${s.num}</span><span class="sysname">${s.label}</span><span class="sysmeta">${st.total? st.correct+'/'+st.total:'no data'}</span><span class="sysekg">${ekgSVG(acc,st.total>0)}</span><span class="systag"><span class="chip ${t.chip}">${t.text}</span></span></div>`;
+        return `<div class="sysrow"><span class="sysnum">${s.num}</span><span class="sysname">${s.label}</span><span class="sysmeta">${st.total? st.correct+'/'+st.total:'no data'}</span><span class="sysekg">${ekgSVG(acc,st.total>0,260,t.confidence)}</span><span class="systag"><span class="chip ${t.chip}">${t.text}</span></span></div>`;
       }).join('')}
     </div>
     <div class="grid2">
@@ -487,7 +491,7 @@ function renderSystems(){
   return `
     <div class="eyebrow">NPLEX I biomedical science blueprint</div>
     <h1 class="pagetitle">Body Systems</h1>
-    <p class="lede">The Part I – Biomedical Science Examination integrates anatomy, physiology, biochemistry &amp; genetics, microbiology &amp; immunology, and pathology across these systems.</p>
+    <p class="lede">The Part I – Biomedical Science Examination integrates anatomy, physiology, biochemistry &amp; genetics, microbiology &amp; immunology, and pathology across these systems. Dashed lines mean fewer than 20 attempts — an early read, not a firm result.</p>
     <div class="card">${SYSTEMS.map(s=>{
       const count = state.questions.filter(q=>q.system===s.key).length;
       const st = stats[s.key]; const acc = st.total? Math.round(st.correct/st.total*100):0; const t = tierFor(acc,st.total);
@@ -495,7 +499,7 @@ function renderSystems(){
         <span class="sysnum">${s.num}</span>
         <span class="sysname">${s.label}${s.hint?`<div class="helptext" style="font-weight:400;">${s.hint}</div>`:''}</span>
         <span class="sysmeta">${count} item${count===1?'':'s'}</span>
-        <span class="sysekg">${ekgSVG(acc,st.total>0)}</span>
+        <span class="sysekg">${ekgSVG(acc,st.total>0,260,t.confidence)}</span>
         <span class="systag"><span class="chip ${t.chip}">${t.text}</span></span>
       </div>`;
     }).join('')}</div>`;
