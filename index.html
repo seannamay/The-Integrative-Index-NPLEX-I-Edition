@@ -255,14 +255,15 @@ const NAV = [
   {key:'timed',     label:'Timed Quiz'},
   {key:'exam',      label:'Random Exam'},
   {key:'review',    label:'Review Log'},
+  {key:'feedback',  label:'Feedback & Requests'},
   {key:'about',     label:'About & Disclaimer'},
 ];
 const CONF_LABELS = {unknown:'Did not know', guessed:'Guessed', understood:'Understood'};
 
 const state = {
-  view:'dashboard', questions:[], attempts:[], reviews:[], flags:[],
+  view:'dashboard', questions:[], attempts:[], reviews:[], flags:[], feedback:[], feedbackVotes:[],
   bankFilter:'all', bankSearch:'', bankFlaggedOnly:false, editingId:null, quiz:null,
-  reviewFilterSystem:'all', reviewFilterConf:'all',
+  reviewFilterSystem:'all', reviewFilterConf:'all', feedbackFilter:'all',
   session:null, authMode:'signin',
 };
 
@@ -279,19 +280,25 @@ function rowToQuestion(r){ return {id:r.id, system:r.system, stem:r.stem, option
 function rowToAttempt(r){ return {id:r.id, mode:r.mode, perQ:r.per_q, total:r.total, correct:r.correct, questions:r.questions, date:new Date(r.created_at).getTime()}; }
 function rowToReview(r){ return {id:r.id, system:r.system, stem:r.stem, options:r.options, chosenIndex:r.chosen_index, correctIndex:r.correct_index, explanation:r.explanation||'', confidence:r.confidence, clueMissed:r.clue_missed||'', factUnknown:r.fact_unknown||'', whyWrong:r.why_wrong||'', date:new Date(r.created_at).getTime()}; }
 function rowToFlag(r){ return {id:r.id, questionId:r.question_id, flaggedBy:r.flagged_by, flaggedByEmail:r.flagged_by_email, reason:r.reason, date:new Date(r.created_at).getTime()}; }
+function rowToFeedback(r){ return {id:r.id, userId:r.user_id, userEmail:r.user_email, category:r.category, message:r.message, date:new Date(r.created_at).getTime()}; }
+function rowToVote(r){ return {id:r.id, feedbackId:r.feedback_id, userId:r.user_id}; }
 
 async function loadAll(){
-  const [{data:qs, error:qErr}, {data:at, error:aErr}, {data:rv, error:rErr}, {data:fl, error:fErr}] = await Promise.all([
+  const [{data:qs, error:qErr}, {data:at, error:aErr}, {data:rv, error:rErr}, {data:fl, error:fErr}, {data:fb, error:fbErr}, {data:fv, error:fvErr}] = await Promise.all([
     sb.from('questions').select('*').order('created_at',{ascending:true}),
     sb.from('attempts').select('*').order('created_at',{ascending:true}),
     sb.from('reviews').select('*').order('created_at',{ascending:true}),
     sb.from('flags').select('*').order('created_at',{ascending:true}),
+    sb.from('feedback').select('*').order('created_at',{ascending:true}),
+    sb.from('feedback_votes').select('*').order('created_at',{ascending:true}),
   ]);
-  if(qErr || aErr || rErr || fErr){ console.error(qErr||aErr||rErr||fErr); }
+  if(qErr || aErr || rErr || fErr || fbErr || fvErr){ console.error(qErr||aErr||rErr||fErr||fbErr||fvErr); }
   state.questions = (qs||[]).map(rowToQuestion);
   state.attempts = (at||[]).map(rowToAttempt);
   state.reviews = (rv||[]).map(rowToReview);
   state.flags = (fl||[]).map(rowToFlag);
+  state.feedback = (fb||[]).map(rowToFeedback);
+  state.feedbackVotes = (fv||[]).map(rowToVote);
 }
 
 /* =====================================================================
@@ -324,6 +331,7 @@ function ekgSVG(accuracy,hasData,width){
   return `<svg width="${width}" height="${h}" viewBox="0 0 ${width} ${h}" preserveAspectRatio="none"><polyline points="${p}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
 }
 function flagsFor(questionId){ return state.flags.filter(f=>f.questionId===questionId); }
+function feedbackVotesFor(feedbackId){ return state.feedbackVotes.filter(v=>v.feedbackId===feedbackId); }
 
 /* =====================================================================
    AUTH SCREEN
@@ -392,7 +400,7 @@ function renderNav(){
 }
 function render(){
   renderNav();
-  const renderers = { dashboard:renderDashboard, bank:renderBank, systems:renderSystems, timed:renderTimedSetup, exam:renderExamSetup, review:renderReviewLog, quiz:renderQuizRunner, results:renderResults, settings:renderSettings, about:renderAbout };
+  const renderers = { dashboard:renderDashboard, bank:renderBank, systems:renderSystems, timed:renderTimedSetup, exam:renderExamSetup, review:renderReviewLog, quiz:renderQuizRunner, results:renderResults, settings:renderSettings, about:renderAbout, feedback:renderFeedback };
   document.getElementById('main').innerHTML = (renderers[state.view]||renderDashboard)();
 }
 
@@ -673,6 +681,62 @@ function renderSettings(){
 }
 
 /* =====================================================================
+   VIEW: FEEDBACK & FEATURE REQUESTS
+   ===================================================================== */
+function renderFeedback(){
+  const myId = state.session.user.id;
+  const CATS = {feature:'Feature request', bug:'Bug report', comment:'General comment'};
+  const filtered = state.feedback.filter(f=> state.feedbackFilter==='all' || f.category===state.feedbackFilter);
+  const sorted = filtered.slice().sort((a,b)=> feedbackVotesFor(b.id).length - feedbackVotesFor(a.id).length || b.date - a.date);
+  return `
+    <div class="eyebrow">Have an idea?</div>
+    <h1 class="pagetitle">Feedback &amp; Requests</h1>
+    <p class="lede">Suggest a feature, report a bug, or leave a comment for the whole class to see. Upvote things you'd also like to see built.</p>
+    <div class="card">
+      <div class="card-title">Post something</div>
+      <form id="feedbackForm">
+        <div class="formrow"><label class="field-label">Type</label>
+          <select name="category">
+            <option value="feature">Feature request</option>
+            <option value="bug">Bug report</option>
+            <option value="comment">General comment</option>
+          </select>
+        </div>
+        <div class="formrow"><label class="field-label">Message</label><textarea name="message" placeholder="What would help you study better?"></textarea></div>
+        <button type="submit" class="btn teal">Post</button>
+        <div class="errtext" id="feedbackError"></div>
+      </form>
+    </div>
+    <div class="card">
+      <div class="card-title">All feedback (${state.feedback.length})</div>
+      <div class="searchbar">
+        <select id="feedbackFilterSel">
+          <option value="all" ${state.feedbackFilter==='all'?'selected':''}>All types</option>
+          <option value="feature" ${state.feedbackFilter==='feature'?'selected':''}>Feature requests</option>
+          <option value="bug" ${state.feedbackFilter==='bug'?'selected':''}>Bug reports</option>
+          <option value="comment" ${state.feedbackFilter==='comment'?'selected':''}>General comments</option>
+        </select>
+      </div>
+      ${sorted.length===0?'<div class="empty">Nothing posted yet — be the first to leave a suggestion.</div>':sorted.map(f=>{
+        const votes = feedbackVotesFor(f.id);
+        const voted = votes.some(v=>v.userId===myId);
+        const catChip = f.category==='bug'?'coral':f.category==='feature'?'teal':'neutral';
+        return `<div class="qcard">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+            <span class="chip ${catChip}">${CATS[f.category]||f.category}</span>
+            <span class="helptext">${f.userId===myId?'You':escapeHtml((f.userEmail||'classmate').split('@')[0])}</span>
+          </div>
+          <div class="stem">${escapeHtml(f.message)}</div>
+          <div style="display:flex;gap:10px;align-items:center;margin-top:12px;">
+            <button class="btn ${voted?'teal':'ghost'} btn-sm" data-action="toggle-vote" data-id="${f.id}">${voted?'Upvoted':'Upvote'} · ${votes.length}</button>
+            ${f.userId===myId?`<button class="btn danger btn-sm" data-action="delete-feedback" data-id="${f.id}">Delete</button>`:''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+/* =====================================================================
    VIEW: ABOUT & DISCLAIMER
    ===================================================================== */
 function renderAbout(){
@@ -770,6 +834,31 @@ document.addEventListener('click', async (e)=>{
     state.flags = state.flags.filter(f=>f.id!==t.dataset.id); render(); return;
   }
 
+  if(action==='toggle-vote'){
+    const myId = state.session.user.id;
+    const existing = state.feedbackVotes.find(v=>v.feedbackId===t.dataset.id && v.userId===myId);
+    if(existing){
+      const {error} = await sb.from('feedback_votes').delete().eq('id', existing.id);
+      if(error){ alert(error.message); return; }
+      state.feedbackVotes = state.feedbackVotes.filter(v=>v.id!==existing.id);
+    } else {
+      const {data,error} = await sb.from('feedback_votes').insert({ feedback_id: t.dataset.id, user_id: myId }).select().single();
+      if(error){ alert('Could not vote: '+error.message); return; }
+      state.feedbackVotes.push(rowToVote(data));
+    }
+    render(); return;
+  }
+  if(action==='delete-feedback'){
+    if(confirm('Delete this post?')){
+      const {error} = await sb.from('feedback').delete().eq('id', t.dataset.id);
+      if(error){ alert(error.message); return; }
+      state.feedback = state.feedback.filter(f=>f.id!==t.dataset.id);
+      state.feedbackVotes = state.feedbackVotes.filter(v=>v.feedbackId!==t.dataset.id);
+      render();
+    }
+    return;
+  }
+
   if(action==='export-bank'){
     const blob = new Blob([JSON.stringify(state.questions,null,2)],{type:'application/json'});
     const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='systemcheck-question-bank.json'; a.click(); URL.revokeObjectURL(url);
@@ -811,6 +900,7 @@ document.addEventListener('input', (e)=>{
   if(e.target.id==='bankSearchInput'){ state.bankSearch=e.target.value; renderBankPreserveFocus(); return; }
   if(e.target.id==='bankFilterSel'){ state.bankFilter=e.target.value; render(); return; }
   if(e.target.id==='bankFlaggedOnly'){ state.bankFlaggedOnly=e.target.checked; render(); return; }
+  if(e.target.id==='feedbackFilterSel'){ state.feedbackFilter=e.target.value; render(); return; }
   if(e.target.id==='revFilterSys'){ state.reviewFilterSystem=e.target.value; render(); return; }
   if(e.target.id==='revFilterConf'){ state.reviewFilterConf=e.target.value; render(); return; }
   if(e.target.name==='sysAll'){ document.querySelectorAll('.sys-individual').forEach(el=>el.style.display = e.target.checked?'none':'flex'); return; }
@@ -839,6 +929,16 @@ document.addEventListener('submit', async (e)=>{
       if(error){ errEl.textContent = error.message; return; }
       state.questions.push(rowToQuestion(data));
     }
+    render(); return;
+  }
+  if(e.target.id==='feedbackForm'){
+    const f = e.target; const errEl = document.getElementById('feedbackError');
+    const message = f.message.value.trim();
+    if(!message){ errEl.textContent='Please write a message before posting.'; return; }
+    const {data,error} = await sb.from('feedback').insert({ user_id: state.session.user.id, user_email: state.session.user.email, category: f.category.value, message }).select().single();
+    if(error){ errEl.textContent = error.message; return; }
+    state.feedback.push(rowToFeedback(data));
+    f.reset();
     render(); return;
   }
   if(e.target.id==='timedForm'){
