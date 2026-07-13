@@ -87,6 +87,7 @@
   .optbtn .optkey{font-family:var(--font-mono);font-weight:600;color:var(--ink-soft);flex-shrink:0;}
   .optbtn.correct{border-color:var(--teal);background:var(--teal-soft);} .optbtn.incorrect{border-color:var(--coral);background:var(--coral-soft);}
   .quizbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--line);}
+  .quiz-nextrow{display:flex;justify-content:flex-end;}
   .timerbox{font-family:var(--font-mono);font-size:22px;font-weight:600;padding:6px 14px;border-radius:7px;background:var(--paper);}
   .timerbox.low{color:var(--coral);background:var(--coral-soft);}
   .confbtns{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
@@ -145,8 +146,13 @@
     /* Prevent iOS Safari auto-zoom on focus by keeping form fields at 16px+ */
     input[type=text],input[type=email],input[type=password],input[type=number],textarea,select{font-size:16px;}
     .btn-sm{padding:8px 12px;font-size:12.5px;}
-    .quizbar{align-items:flex-start;}
-    .timerbox{font-size:19px;}
+    .quizbar{flex-direction:column;align-items:stretch;gap:6px;}
+    .timerbox{font-size:22px;align-self:flex-start;padding:8px 16px;}
+    .qcard{padding:14px 14px;}
+    .qcard .stem{font-size:16px;line-height:1.55;}
+    .optbtn{padding:13px 14px;font-size:15px;}
+    .quiz-nextrow{justify-content:stretch;}
+    .quiz-nextrow .btn{width:100%;justify-content:center;padding:13px;font-size:14.5px;}
   }
 </style>
 </head>
@@ -600,7 +606,7 @@ function renderQuizRunner(){
   return `
     <div class="quizbar"><div><div class="eyebrow">${quiz.mode==='exam'?'Random exam':'Timed quiz'} · Question ${quiz.index+1} of ${quiz.questions.length}</div><div class="helptext">${sysLabel(q.system)}</div></div><div class="timerbox" id="quizTimerBox"><span id="quizTimerText">${fmtTime(quiz.remaining)}</span></div></div>
     <div class="qcard"><div class="stem">${escapeHtml(q.stem)}</div><div class="optlist">${q.options.map((opt,i)=>`<button class="optbtn ${ans.chosenIndex===i?'selected':''}" data-action="select-option" data-idx="${i}"><span class="optkey">${String.fromCharCode(65+i)}</span><span>${escapeHtml(opt)}</span></button>`).join('')}</div></div>
-    <div style="display:flex;justify-content:flex-end;"><button class="btn teal" data-action="next-question">${quiz.index<quiz.questions.length-1?'Next question':'Finish'}</button></div>`;
+    <div class="quiz-nextrow"><button class="btn teal" data-action="next-question">${quiz.index<quiz.questions.length-1?'Next question':'Finish'}</button></div>`;
 }
 
 /* =====================================================================
