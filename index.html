@@ -6,7 +6,7 @@
 <title>The Integrative Index — NPLEX I Edition</title>
 <link rel="icon" type="image/svg+xml" href="logo-icon-solid.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Karla:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
   :root{
@@ -15,8 +15,8 @@
     --teal:#1F6F5C; --teal-soft:#E1EEE8;
     --amber:#A8701A; --amber-soft:#F5EAD6;
     --coral:#AE3A2E; --coral-soft:#F5E1DE;
-    --font-display:'Source Serif 4', Georgia, serif;
-    --font-body:'IBM Plex Sans', -apple-system, sans-serif;
+    --font-display:'Fraunces', Georgia, serif;
+    --font-body:'Karla', -apple-system, sans-serif;
     --font-mono:'IBM Plex Mono', 'Courier New', monospace;
   }
   *{box-sizing:border-box;}
@@ -29,7 +29,7 @@
   .brand{padding:26px 22px 18px 22px;}
   .brand-row{display:flex;align-items:center;gap:10px;}
   .brand-icon{flex-shrink:0;}
-  .brand-name{font-family:var(--font-display);font-weight:700;font-size:20px;letter-spacing:-0.01em;}
+  .brand-name{font-family:var(--font-display);font-weight:600;font-size:20px;letter-spacing:0.02em;}
   .brand-sub{font-family:var(--font-mono);font-size:10.5px;color:var(--ink-soft);letter-spacing:.08em;text-transform:uppercase;margin-top:4px;}
   .brand-disclaimer{font-size:10.5px;color:var(--ink-soft);margin-top:8px;line-height:1.4;font-style:italic;}
   .pulse-rule{height:22px;margin:6px 22px 8px 22px;}
@@ -46,7 +46,7 @@
 
   #main{flex:1;padding:36px 40px 80px 40px;max-width:1040px;}
   .eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);}
-  h1.pagetitle{font-family:var(--font-display);font-size:30px;font-weight:700;margin:2px 0 6px 0;letter-spacing:-0.01em;}
+  h1.pagetitle{font-family:var(--font-display);font-size:30px;font-weight:600;margin:2px 0 6px 0;letter-spacing:0.02em;}
   .lede{color:var(--ink-soft);font-size:14px;margin-bottom:26px;max-width:640px;}
   .card{background:var(--paper-raised);border:1px solid var(--line);border-radius:10px;padding:22px 24px;margin-bottom:20px;}
   .card-title{font-family:var(--font-display);font-size:17px;font-weight:600;margin:0 0 14px 0;}
@@ -166,7 +166,7 @@
         </div>
       </div>
       <div class="notice" id="disclaimerNotice" style="display:none;">
-        <strong>Student-built study tool.</strong> Every question here is written and reviewed by fellow students, not a licensing body or faculty. Treat it as practice, not a verified source — always cross-check against your primary course materials and official NPLEX I resources.
+        <strong>Terms &amp; disclaimer.</strong> This is an independent, student-built study tool created for NUNM students preparing for NPLEX I. Questions are written and reviewed by fellow students, not a licensing body or faculty, and may contain errors — treat it as practice, not a verified source. This tool is not affiliated with, produced by, or endorsed by NABNE. Your quiz history and review log are private to your account; the question bank is shared with other students. See the About &amp; Disclaimer page after signing in for full details.
       </div>
       <div class="authtabs">
         <button class="authtab active" id="tabSignIn">Sign in</button>
@@ -177,7 +177,7 @@
         <div class="formrow"><label class="field-label">Password</label><input type="password" name="password" required minlength="6"></div>
         <label class="disclaimer-check" id="disclaimerCheckRow" style="display:none;">
           <input type="checkbox" id="disclaimerCheckbox">
-          <span>I understand this content is student-created, may contain errors, and is not a substitute for verified course or licensing-board material.</span>
+          <span>I have read and agree to the terms &amp; disclaimer above.</span>
         </label>
         <button type="submit" class="btn teal" style="width:100%;justify-content:center;" id="authSubmitBtn">Sign in</button>
         <div class="errtext" id="authError"></div>
@@ -364,7 +364,7 @@ document.getElementById('authForm').addEventListener('submit', async (e)=>{
       return;
     }
     if(!document.getElementById('disclaimerCheckbox').checked){
-      errEl.textContent = 'Please check the box to acknowledge the disclaimer before creating an account.';
+      errEl.textContent = 'Please check the box to agree to the terms & disclaimer before creating an account.';
       return;
     }
   }
