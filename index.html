@@ -22,32 +22,31 @@
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
   body{background:var(--paper);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;}
-  #app{display:flex;min-height:100vh;}
   a{color:inherit;} button{font-family:var(--font-body);cursor:pointer;}
 
-  #sidebar{width:236px;flex-shrink:0;background:var(--paper-raised);border-right:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;}
-  #app.quiz-fullscreen #sidebar{display:none;}
-  .brand{padding:26px 22px 18px 22px;}
-  .brand-row{display:flex;align-items:center;gap:10px;}
-  .brand-icon{flex-shrink:0;}
-  .brand-name{font-family:var(--font-display);font-weight:600;font-size:20px;letter-spacing:0.02em;}
-  .brand-sub{font-family:var(--font-mono);font-size:10.5px;color:var(--ink-soft);letter-spacing:.08em;text-transform:uppercase;margin-top:4px;}
-  .brand-disclaimer{font-size:10.5px;color:var(--ink-soft);margin-top:8px;line-height:1.4;font-style:italic;}
-  .pulse-rule{height:22px;margin:6px 22px 8px 22px;}
-  nav.mainnav{display:flex;flex-direction:column;padding:6px 12px;gap:2px;flex:1;}
+  #topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 20px;background:var(--paper-raised);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:30;}
+  .topbar-brand{display:flex;align-items:center;gap:10px;min-width:0;}
+  .topbar-icon{flex-shrink:0;}
+  .topbar-text{min-width:0;}
+  .topbar-name{font-family:var(--font-display);font-weight:600;font-size:16px;letter-spacing:0.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .topbar-sub{font-family:var(--font-mono);font-size:9px;color:var(--ink-soft);letter-spacing:.08em;text-transform:uppercase;}
+  .menu-toggle-btn{flex-shrink:0;padding:9px 14px;border-radius:7px;border:1px solid var(--line-strong);background:#fff;font-size:13px;font-weight:600;color:var(--ink);}
+
+  #navPanel{display:none;background:var(--paper-raised);border-bottom:1px solid var(--line);padding:16px 20px 18px 20px;position:sticky;top:53px;z-index:29;}
+  #navPanel.open{display:block;}
+  .navpanel-disclaimer{font-size:11.5px;color:var(--ink-soft);font-style:italic;margin-bottom:14px;line-height:1.45;max-width:520px;}
+  nav.mainnav{display:flex;flex-direction:column;gap:2px;margin-bottom:14px;max-width:340px;}
   .navbtn{display:flex;align-items:center;gap:10px;text-align:left;padding:10px 12px;border:none;background:transparent;border-radius:7px;font-size:13.5px;color:var(--ink-soft);font-weight:500;}
   .navbtn:hover{background:var(--teal-soft);color:var(--ink);}
   .navbtn.active{background:var(--teal);color:#fff;}
   .navbtn .dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.55;flex-shrink:0;}
-  .sidebar-foot{padding:14px 22px 20px 22px;border-top:1px solid var(--line);}
-  .reset-link{font-family:var(--font-mono);font-size:11px;color:var(--ink-soft);background:none;border:none;padding:0;text-decoration:underline;text-underline-offset:2px;display:block;margin-bottom:8px;}
-  .whoami{font-family:var(--font-mono);font-size:11px;color:var(--ink-soft);margin-bottom:8px;word-break:break-all;}
-  .sidebar-collapsible{display:contents;}
-  .mobile-nav-toggle{display:none;}
+  .navpanel-foot{display:flex;gap:16px;flex-wrap:wrap;padding-top:12px;border-top:1px solid var(--line);max-width:340px;}
+  .reset-link{font-family:var(--font-mono);font-size:11px;color:var(--ink-soft);background:none;border:none;padding:0;text-decoration:underline;text-underline-offset:2px;}
+  .whoami{font-family:var(--font-mono);font-size:11px;color:var(--ink-soft);word-break:break-all;flex-basis:100%;margin-bottom:2px;}
 
-  #main{flex:1;padding:36px 40px 80px 40px;max-width:1040px;}
+  #main{width:100%;max-width:1000px;margin:0 auto;padding:28px 24px 80px 24px;}
   .eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);}
-  h1.pagetitle{font-family:var(--font-display);font-size:30px;font-weight:600;margin:2px 0 6px 0;letter-spacing:0.02em;}
+  h1.pagetitle{font-family:var(--font-display);font-size:28px;font-weight:600;margin:2px 0 6px 0;letter-spacing:0.02em;}
   .lede{color:var(--ink-soft);font-size:14px;margin-bottom:26px;max-width:640px;}
   .card{background:var(--paper-raised);border:1px solid var(--line);border-radius:10px;padding:22px 24px;margin-bottom:20px;}
   .card-title{font-family:var(--font-display);font-size:17px;font-weight:600;margin:0 0 14px 0;}
@@ -73,7 +72,7 @@
   td{padding:9px 8px;border-bottom:1px solid var(--line);font-size:13.5px;vertical-align:top;} tr:last-child td{border-bottom:none;}
   .table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
   .stat-hero{display:flex;gap:36px;flex-wrap:wrap;margin-bottom:8px;}
-  .stat-big{font-family:var(--font-display);font-size:44px;font-weight:700;line-height:1;}
+  .stat-big{font-family:var(--font-display);font-size:40px;font-weight:700;line-height:1;}
   .stat-label{font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);margin-top:6px;}
   .sysrow{display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);} .sysrow:last-child{border-bottom:none;}
   .sysrow .sysnum{font-family:var(--font-mono);font-size:11px;color:var(--ink-soft);width:22px;flex-shrink:0;}
@@ -87,7 +86,7 @@
   .optbtn:hover{border-color:var(--teal);} .optbtn.selected{border-color:var(--ink);background:var(--paper);}
   .optbtn .optkey{font-family:var(--font-mono);font-weight:600;color:var(--ink-soft);flex-shrink:0;}
   .optbtn.correct{border-color:var(--teal);background:var(--teal-soft);} .optbtn.incorrect{border-color:var(--coral);background:var(--coral-soft);}
-  .quizbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--line);}
+  .quizbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--line);}
   .quiz-nextrow{display:flex;justify-content:flex-end;}
   .timerbox{font-family:var(--font-mono);font-size:22px;font-weight:600;padding:6px 14px;border-radius:7px;background:var(--paper);}
   .timerbox.low{color:var(--coral);background:var(--coral-soft);}
@@ -104,7 +103,6 @@
   .notice{background:var(--amber-soft);color:var(--amber);border-radius:7px;padding:10px 14px;font-size:13px;margin-bottom:14px;}
   hr.hair{border:none;border-top:1px solid var(--line);margin:18px 0;}
 
-  /* auth screen */
   #authScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;width:100%;overflow-y:auto;padding:24px 14px;}
   .authcard{background:var(--paper-raised);border:1px solid var(--line);border-radius:12px;padding:36px;max-width:380px;width:100%;}
   .authtabs{display:flex;gap:6px;margin-bottom:18px;}
@@ -113,21 +111,9 @@
   .disclaimer-check{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--ink-soft);margin-bottom:14px;line-height:1.4;}
   .disclaimer-check input{margin-top:3px;flex-shrink:0;}
   .auth-footnote{font-size:11px;color:var(--ink-soft);text-align:center;margin-top:16px;line-height:1.5;}
+  .brand-row{display:flex;align-items:center;gap:10px;}
 
   @media (max-width:860px){
-    #app{flex-direction:column;}
-    #sidebar{width:100%;height:auto;position:relative;flex-direction:column;overflow-x:visible;}
-    .brand{padding:14px 16px 8px 16px;}
-    .brand-name{font-size:16px;}
-    .brand-disclaimer{max-width:100%;}
-    .pulse-rule{display:none;}
-    nav.mainnav{flex-direction:column;flex:none;padding:6px 12px;overflow-x:visible;gap:2px;}
-    .navbtn{white-space:normal;padding:10px 12px;font-size:13.5px;}
-    .mobile-nav-toggle{display:block;width:calc(100% - 32px);margin:10px 16px 0 16px;padding:10px 12px;border-radius:7px;border:1px solid var(--line-strong);background:#fff;font-size:13px;font-weight:600;text-align:left;color:var(--ink);}
-    #sidebar:not(.nav-open) .sidebar-collapsible{display:none;}
-    .sidebar-foot{display:flex;gap:14px;padding:8px 16px 12px 16px;border-top:none;flex-wrap:wrap;}
-    .whoami{display:none;}
-    #main{padding:20px 16px 60px 16px;}
     .pagetitle{font-size:24px;}
     .sysrow{flex-wrap:wrap;row-gap:6px;}
     .sysrow .sysname{width:auto;flex:1 1 140px;}
@@ -135,7 +121,9 @@
     .stat-hero{gap:20px;}
     .stat-big{font-size:32px;}
     .authcard{padding:26px 22px;}
-    /* Stack the question bank table into cards instead of scrolling sideways */
+    input[type=text],input[type=email],input[type=password],input[type=number],textarea,select{font-size:16px;}
+    .btn-sm{padding:8px 12px;font-size:12.5px;}
+    #main{padding:20px 16px 60px 16px;}
     .table-scroll{overflow-x:visible;}
     table{display:block;min-width:0;width:100%;}
     thead{display:none;}
@@ -144,9 +132,6 @@
     td{display:block;width:auto;border-bottom:none;padding:4px 0;}
     td::before{content:attr(data-label);display:block;font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:2px;}
     td:empty{display:none;}
-    /* Prevent iOS Safari auto-zoom on focus by keeping form fields at 16px+ */
-    input[type=text],input[type=email],input[type=password],input[type=number],textarea,select{font-size:16px;}
-    .btn-sm{padding:8px 12px;font-size:12.5px;}
     .quizbar{flex-direction:column;align-items:stretch;gap:6px;}
     .timerbox{font-size:22px;align-self:flex-start;padding:8px 16px;}
     .qcard{padding:14px 14px;}
@@ -154,6 +139,8 @@
     .optbtn{padding:13px 14px;font-size:15px;}
     .quiz-nextrow{justify-content:stretch;}
     .quiz-nextrow .btn{width:100%;justify-content:center;padding:13px;font-size:14.5px;}
+    #navPanel{top:49px;}
+    nav.mainnav, .navpanel-foot{max-width:none;}
   }
 </style>
 </head>
@@ -168,8 +155,8 @@
           <polyline points="30,48 40,48 44,37 48,59 52,48 66,48" fill="none" stroke="#EFF3EE" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
         </svg>
         <div>
-          <div class="brand-name">The Integrative Index</div>
-          <div class="brand-sub">NPLEX I Edition</div>
+          <div style="font-family:var(--font-display);font-weight:600;font-size:18px;">The Integrative Index</div>
+          <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-soft);letter-spacing:.08em;text-transform:uppercase;margin-top:2px;">NPLEX I Edition</div>
         </div>
       </div>
       <div class="notice" id="disclaimerNotice" style="display:none;">
@@ -194,52 +181,40 @@
   </div>
 
   <div id="mainApp" style="display:none;width:100%;">
-    <aside id="sidebar">
-      <div class="brand">
-        <div class="brand-row">
-          <svg class="brand-icon" width="34" height="34" viewBox="0 0 96 96" aria-hidden="true">
-            <circle cx="48" cy="48" r="42" fill="#1F6F5C"/>
-            <path d="M48,15 C70,31 70,65 48,81 C26,65 26,31 48,15 Z" fill="none" stroke="#EFF3EE" stroke-width="3"/>
-            <polyline points="30,48 40,48 44,37 48,59 52,48 66,48" fill="none" stroke="#EFF3EE" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
-          </svg>
-          <div>
-            <div class="brand-name">The Integrative Index</div>
-            <div class="brand-sub">NPLEX I Edition</div>
-          </div>
-        </div>
-        <div class="brand-disclaimer">Unofficial NUNM student project. Not affiliated with NABNE. Educational use only.</div>
-        <button class="mobile-nav-toggle" id="mobileNavToggle" data-action="toggle-mobile-nav">Menu ▾</button>
-      </div>
-      <div class="pulse-rule"><svg width="100%" height="22" viewBox="0 0 192 22" preserveAspectRatio="none"><polyline points="0,11 60,11 70,3 80,19 90,11 192,11" fill="none" stroke="#1F6F5C" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg></div>
-      <div class="sidebar-collapsible" id="sidebarCollapsible">
-        <nav class="mainnav" id="mainnav"></nav>
-        <div class="sidebar-foot">
-          <div class="whoami" id="whoami"></div>
-          <button class="reset-link" data-action="open-settings">Data &amp; reset options</button>
-          <button class="reset-link" data-action="sign-out">Sign out</button>
+    <div id="topbar">
+      <div class="topbar-brand">
+        <svg class="topbar-icon" width="30" height="30" viewBox="0 0 96 96" aria-hidden="true">
+          <circle cx="48" cy="48" r="42" fill="#1F6F5C"/>
+          <path d="M48,15 C70,31 70,65 48,81 C26,65 26,31 48,15 Z" fill="none" stroke="#EFF3EE" stroke-width="3"/>
+          <polyline points="30,48 40,48 44,37 48,59 52,48 66,48" fill="none" stroke="#EFF3EE" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+        </svg>
+        <div class="topbar-text">
+          <div class="topbar-name">The Integrative Index</div>
+          <div class="topbar-sub">Unofficial student project · not affiliated with NABNE</div>
         </div>
       </div>
-    </aside>
+      <button class="menu-toggle-btn" id="menuToggleBtn" data-action="toggle-menu">Menu ▾</button>
+    </div>
+    <div id="navPanel">
+      <div class="navpanel-disclaimer">Unofficial NUNM student project. Not affiliated with NABNE. Educational use only — content is student-written and unverified.</div>
+      <nav class="mainnav" id="mainnav"></nav>
+      <div class="navpanel-foot">
+        <div class="whoami" id="whoami"></div>
+        <button class="reset-link" data-action="open-settings">Data &amp; reset options</button>
+        <button class="reset-link" data-action="sign-out">Sign out</button>
+      </div>
+    </div>
     <main id="main"></main>
   </div>
 </div>
 
 <script>
-/* =====================================================================
-   SUPABASE CONFIG
-   ===================================================================== */
 const SUPABASE_URL = 'https://qsarmpgqrbchcxcmdjia.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_YGg5jFsF9B5bhEyrpGpA8g_Gfol6R66';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-/* =====================================================================
-   ACCESS CONTROL — signup email domain restriction (client-side check)
-   ===================================================================== */
 const ALLOWED_EMAIL_DOMAIN = 'nunm.edu';
 
-/* =====================================================================
-   DATA MODEL
-   ===================================================================== */
 const SYSTEMS = [
   {key:'general',   label:'General Biomedical Science', num:'00', hint:'Genetics, microbiology & immunology, and pathology not tied to one organ system'},
   {key:'biochem',    label:'Biochemistry',               num:'01', hint:'Metabolism, enzymology, nutrition biochemistry, molecular biology'},
@@ -271,7 +246,7 @@ const state = {
   view:'dashboard', questions:[], attempts:[], reviews:[], flags:[], feedback:[], feedbackVotes:[],
   bankFilter:'all', bankSearch:'', bankFlaggedOnly:false, editingId:null, quiz:null,
   reviewFilterSystem:'all', reviewFilterConf:'all', feedbackFilter:'all',
-  session:null, authMode:'signin',
+  session:null, authMode:'signin', navOpen:false,
 };
 
 function sysLabel(key){ const s=SYSTEMS.find(s=>s.key===key); return s? s.label : key; }
@@ -280,9 +255,6 @@ function shuffle(arr){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){const 
 function escapeHtml(s){ return (s||'').replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 function escapeAttr(s){ return (s||'').replace(/"/g,'&quot;'); }
 
-/* =====================================================================
-   SUPABASE ROW <-> APP SHAPE CONVERSION
-   ===================================================================== */
 function rowToQuestion(r){ return {id:r.id, system:r.system, stem:r.stem, options:r.options, correct:r.correct, explanation:r.explanation||'', createdBy:r.created_by, createdByEmail:r.created_by_email}; }
 function rowToAttempt(r){ return {id:r.id, mode:r.mode, perQ:r.per_q, total:r.total, correct:r.correct, questions:r.questions, date:new Date(r.created_at).getTime()}; }
 function rowToReview(r){ return {id:r.id, system:r.system, stem:r.stem, options:r.options, chosenIndex:r.chosen_index, correctIndex:r.correct_index, explanation:r.explanation||'', confidence:r.confidence, clueMissed:r.clue_missed||'', factUnknown:r.fact_unknown||'', whyWrong:r.why_wrong||'', date:new Date(r.created_at).getTime()}; }
@@ -308,9 +280,6 @@ async function loadAll(){
   state.feedbackVotes = (fv||[]).map(rowToVote);
 }
 
-/* =====================================================================
-   AGGREGATION HELPERS
-   ===================================================================== */
 function systemStats(){
   const map = {}; SYSTEMS.forEach(s=> map[s.key] = {correct:0,total:0});
   state.attempts.forEach(att=> att.questions.forEach(q=>{
@@ -340,9 +309,6 @@ function ekgSVG(accuracy,hasData,width){
 function flagsFor(questionId){ return state.flags.filter(f=>f.questionId===questionId); }
 function feedbackVotesFor(feedbackId){ return state.feedbackVotes.filter(v=>v.feedbackId===feedbackId); }
 
-/* =====================================================================
-   AUTH SCREEN
-   ===================================================================== */
 function showAuthScreen(){
   document.getElementById('authScreen').style.display='flex';
   document.getElementById('mainApp').style.display='none';
@@ -350,6 +316,7 @@ function showAuthScreen(){
 function showMainApp(){
   document.getElementById('authScreen').style.display='none';
   document.getElementById('mainApp').style.display='flex';
+  document.getElementById('mainApp').style.flexDirection='column';
   document.getElementById('whoami').textContent = state.session.user.email;
   render();
 }
@@ -398,23 +365,21 @@ document.getElementById('authForm').addEventListener('submit', async (e)=>{
   showMainApp();
 });
 
-/* =====================================================================
-   RENDER: SHELL / NAV
-   ===================================================================== */
 function renderNav(){
   document.getElementById('mainnav').innerHTML = NAV.map(n=>`
     <button class="navbtn ${state.view===n.key?'active':''}" data-action="nav" data-view="${n.key}"><span class="dot"></span>${n.label}</button>`).join('');
 }
+function syncNavPanel(){
+  document.getElementById('navPanel').classList.toggle('open', state.navOpen);
+  document.getElementById('menuToggleBtn').textContent = state.navOpen ? 'Close ▲' : 'Menu ▾';
+}
 function render(){
-  document.getElementById('app').classList.toggle('quiz-fullscreen', state.view==='quiz');
+  syncNavPanel();
   renderNav();
   const renderers = { dashboard:renderDashboard, bank:renderBank, systems:renderSystems, timed:renderTimedSetup, exam:renderExamSetup, review:renderReviewLog, quiz:renderQuizRunner, results:renderResults, settings:renderSettings, about:renderAbout, feedback:renderFeedback };
   document.getElementById('main').innerHTML = (renderers[state.view]||renderDashboard)();
 }
 
-/* =====================================================================
-   VIEW: DASHBOARD
-   ===================================================================== */
 function renderDashboard(){
   const overall = overallStats(); const stats = systemStats();
   const confCounts = {unknown:0,guessed:0,understood:0};
@@ -452,9 +417,6 @@ function renderDashboard(){
     </div>`;
 }
 
-/* =====================================================================
-   VIEW: QUESTION BANK (shared, class-wide)
-   ===================================================================== */
 function renderBank(){
   const editing = state.editingId ? state.questions.find(q=>q.id===state.editingId) : null;
   const myId = state.session.user.id;
@@ -509,9 +471,6 @@ function renderBank(){
     </div>`;
 }
 
-/* =====================================================================
-   VIEW: SYSTEMS
-   ===================================================================== */
 function renderSystems(){
   const stats = systemStats();
   return `
@@ -531,9 +490,6 @@ function renderSystems(){
     }).join('')}</div>`;
 }
 
-/* =====================================================================
-   VIEW: TIMED / EXAM SETUP
-   ===================================================================== */
 function renderTimedSetup(){
   return `
     <div class="eyebrow">Timed practice</div>
@@ -558,9 +514,6 @@ function renderExamSetup(){
     </form></div>`;
 }
 
-/* =====================================================================
-   QUIZ ENGINE
-   ===================================================================== */
 function buildQuizQuestions(pool,count){
   return shuffle(pool).slice(0,count).map(q=>{
     const idx = shuffle([0,1,2,3]);
@@ -570,6 +523,7 @@ function buildQuizQuestions(pool,count){
 function startQuiz(mode,pool,count,perQ){
   const questions = buildQuizQuestions(pool,count);
   state.quiz = { mode, perQ, questions, index:0, answers: questions.map(()=>({chosenIndex:null,timedOut:false})), remaining:perQ, timerId:null };
+  state.navOpen = false;
   state.view='quiz'; render(); startTimer();
 }
 function startTimer(){
@@ -615,9 +569,6 @@ function renderQuizRunner(){
     <div class="quiz-nextrow"><button class="btn teal" data-action="next-question">${quiz.index<quiz.questions.length-1?'Next question':'Finish'}</button></div>`;
 }
 
-/* =====================================================================
-   VIEW: RESULTS + REVIEW CAPTURE
-   ===================================================================== */
 function renderResults(){
   const r = state.quiz.result; const pct = Math.round(r.correct/r.total*100);
   const bySys = {}; r.questions.forEach(q=>{ if(!bySys[q.system]) bySys[q.system]={correct:0,total:0}; bySys[q.system].total++; if(q.correct) bySys[q.system].correct++; });
@@ -649,9 +600,6 @@ function renderMissedItem(q,idx){
   </div>`;
 }
 
-/* =====================================================================
-   VIEW: REVIEW LOG
-   ===================================================================== */
 function renderReviewLog(){
   const filtered = state.reviews.filter(r=>{
     if(state.reviewFilterSystem!=='all' && r.system!==state.reviewFilterSystem) return false;
@@ -678,23 +626,6 @@ function renderReviewLog(){
     </div>`;
 }
 
-/* =====================================================================
-   VIEW: SETTINGS
-   ===================================================================== */
-function renderSettings(){
-  return `
-    <div class="eyebrow">Data</div>
-    <h1 class="pagetitle">Data &amp; Reset Options</h1>
-    <p class="lede">Your quiz history and review log are private to your account. The question bank is shared with the whole class.</p>
-    <div class="card"><div class="card-title">Reset progress</div><p class="helptext" style="margin-bottom:12px;">Clears your own quiz attempts and mastery data.</p><button class="btn danger" data-action="reset-progress">Reset my progress</button></div>
-    <div class="card"><div class="card-title">Clear review log</div><p class="helptext" style="margin-bottom:12px;">Deletes your catalogued gap entries.</p><button class="btn danger" data-action="reset-reviews">Clear my review log</button></div>
-    <div class="card"><div class="card-title">Remove my questions</div><p class="helptext" style="margin-bottom:12px;">Deletes only the questions you personally added to the shared bank.</p><button class="btn danger" data-action="reset-bank">Remove my questions</button></div>
-    <button class="btn secondary" data-action="nav" data-view="dashboard">Back to dashboard</button>`;
-}
-
-/* =====================================================================
-   VIEW: FEEDBACK & FEATURE REQUESTS
-   ===================================================================== */
 function renderFeedback(){
   const myId = state.session.user.id;
   const CATS = {feature:'Feature request', bug:'Bug report', comment:'General comment'};
@@ -748,9 +679,6 @@ function renderFeedback(){
     </div>`;
 }
 
-/* =====================================================================
-   VIEW: ABOUT & DISCLAIMER
-   ===================================================================== */
 function renderAbout(){
   return `
     <div class="eyebrow">Please read</div>
@@ -784,41 +712,36 @@ function renderAbout(){
 
     <div class="card">
       <div class="card-title">Feedback, corrections &amp; data requests</div>
-      <p>To flag an incorrect or unclear question, use the Flag button next to it in the Question Bank. For anything else — bugs, feedback, or to request deletion of your account or contributed content — contact <strong>[replace with your contact email]</strong>.</p>
+      <p>To flag an incorrect or unclear question, use the Flag button next to it in the Question Bank. To suggest a feature or report a bug, use the Feedback &amp; Requests page. For anything else — including requesting deletion of your account or contributed content — contact <strong>[replace with your contact email]</strong>.</p>
     </div>
   `;
 }
 
-/* =====================================================================
-   EVENT HANDLING
-   ===================================================================== */
+function renderSettings(){
+  return `
+    <div class="eyebrow">Data</div>
+    <h1 class="pagetitle">Data &amp; Reset Options</h1>
+    <p class="lede">Your quiz history and review log are private to your account. The question bank is shared with the whole class.</p>
+    <div class="card"><div class="card-title">Reset progress</div><p class="helptext" style="margin-bottom:12px;">Clears your own quiz attempts and mastery data.</p><button class="btn danger" data-action="reset-progress">Reset my progress</button></div>
+    <div class="card"><div class="card-title">Clear review log</div><p class="helptext" style="margin-bottom:12px;">Deletes your catalogued gap entries.</p><button class="btn danger" data-action="reset-reviews">Clear my review log</button></div>
+    <div class="card"><div class="card-title">Remove my questions</div><p class="helptext" style="margin-bottom:12px;">Deletes only the questions you personally added to the shared bank.</p><button class="btn danger" data-action="reset-bank">Remove my questions</button></div>
+    <button class="btn secondary" data-action="nav" data-view="dashboard">Back to dashboard</button>`;
+}
+
 document.addEventListener('click', async (e)=>{
   const t = e.target.closest('[data-action]'); if(!t) return;
   const action = t.dataset.action;
 
+  if(action==='toggle-menu'){ state.navOpen = !state.navOpen; syncNavPanel(); return; }
   if(action==='nav'){
-    state.view=t.dataset.view; render();
-    if(window.innerWidth<=860){
-      document.getElementById('sidebar').classList.remove('nav-open');
-      const btn = document.getElementById('mobileNavToggle'); if(btn) btn.textContent='Menu ▾';
+    if(state.view==='quiz' && state.quiz){
+      if(!confirm("Leave this quiz? Your progress won't be saved.")) return;
+      clearInterval(state.quiz.timerId);
+      state.quiz = null;
     }
-    return;
+    state.view=t.dataset.view; state.navOpen=false; render(); return;
   }
-  if(action==='toggle-mobile-nav'){
-    const sb2 = document.getElementById('sidebar');
-    sb2.classList.toggle('nav-open');
-    const btn = document.getElementById('mobileNavToggle');
-    if(btn) btn.textContent = sb2.classList.contains('nav-open') ? 'Menu ▲' : 'Menu ▾';
-    return;
-  }
-  if(action==='open-settings'){
-    state.view='settings'; render();
-    if(window.innerWidth<=860){
-      document.getElementById('sidebar').classList.remove('nav-open');
-      const btn = document.getElementById('mobileNavToggle'); if(btn) btn.textContent='Menu ▾';
-    }
-    return;
-  }
+  if(action==='open-settings'){ state.view='settings'; state.navOpen=false; render(); return; }
   if(action==='sign-out'){ await sb.auth.signOut(); state.session=null; showAuthScreen(); return; }
 
   if(action==='edit-question'){ state.editingId=t.dataset.id; state.view='bank'; render(); window.scrollTo(0,0); return; }
@@ -989,9 +912,6 @@ document.addEventListener('submit', async (e)=>{
   }
 });
 
-/* =====================================================================
-   INIT
-   ===================================================================== */
 (async function init(){
   const { data:{session} } = await sb.auth.getSession();
   if(session){ state.session = session; await loadAll(); showMainApp(); }
