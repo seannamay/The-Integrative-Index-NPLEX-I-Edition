@@ -1,0 +1,5 @@
+<svg width="96" height="96" viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The Integrative Index leaf and pulse mark">
+  <circle cx="48" cy="48" r="42" fill="#1F6F5C"/>
+  <path d="M48,15 C70,31 70,65 48,81 C26,65 26,31 48,15 Z" fill="none" stroke="#EFF3EE" stroke-width="3"/>
+  <polyline points="30,48 40,48 44,37 48,59 52,48 66,48" fill="none" stroke="#EFF3EE" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+</svg>
