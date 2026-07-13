@@ -26,6 +26,7 @@
   a{color:inherit;} button{font-family:var(--font-body);cursor:pointer;}
 
   #sidebar{width:236px;flex-shrink:0;background:var(--paper-raised);border-right:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;}
+  #app.quiz-fullscreen #sidebar{display:none;}
   .brand{padding:26px 22px 18px 22px;}
   .brand-row{display:flex;align-items:center;gap:10px;}
   .brand-icon{flex-shrink:0;}
@@ -405,6 +406,7 @@ function renderNav(){
     <button class="navbtn ${state.view===n.key?'active':''}" data-action="nav" data-view="${n.key}"><span class="dot"></span>${n.label}</button>`).join('');
 }
 function render(){
+  document.getElementById('app').classList.toggle('quiz-fullscreen', state.view==='quiz');
   renderNav();
   const renderers = { dashboard:renderDashboard, bank:renderBank, systems:renderSystems, timed:renderTimedSetup, exam:renderExamSetup, review:renderReviewLog, quiz:renderQuizRunner, results:renderResults, settings:renderSettings, about:renderAbout, feedback:renderFeedback };
   document.getElementById('main').innerHTML = (renderers[state.view]||renderDashboard)();
@@ -605,6 +607,10 @@ function renderQuizRunner(){
   const quiz = state.quiz; const q = quiz.questions[quiz.index]; const ans = quiz.answers[quiz.index];
   return `
     <div class="quizbar"><div><div class="eyebrow">${quiz.mode==='exam'?'Random exam':'Timed quiz'} · Question ${quiz.index+1} of ${quiz.questions.length}</div><div class="helptext">${sysLabel(q.system)}</div></div><div class="timerbox" id="quizTimerBox"><span id="quizTimerText">${fmtTime(quiz.remaining)}</span></div></div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <button class="btn ghost btn-sm" data-action="end-quiz-early">End quiz now</button>
+      <button class="btn danger btn-sm" data-action="cancel-quiz">Cancel</button>
+    </div>
     <div class="qcard"><div class="stem">${escapeHtml(q.stem)}</div><div class="optlist">${q.options.map((opt,i)=>`<button class="optbtn ${ans.chosenIndex===i?'selected':''}" data-action="select-option" data-idx="${i}"><span class="optkey">${String.fromCharCode(65+i)}</span><span>${escapeHtml(opt)}</span></button>`).join('')}</div></div>
     <div class="quiz-nextrow"><button class="btn teal" data-action="next-question">${quiz.index<quiz.questions.length-1?'Next question':'Finish'}</button></div>`;
 }
@@ -877,6 +883,21 @@ document.addEventListener('click', async (e)=>{
 
   if(action==='select-option'){ state.quiz.answers[state.quiz.index].chosenIndex = parseInt(t.dataset.idx,10); render(); return; }
   if(action==='next-question'){ await advanceQuestion(); return; }
+  if(action==='cancel-quiz'){
+    if(confirm('Cancel this quiz? Your progress will not be saved and no score will be recorded.')){
+      clearInterval(state.quiz.timerId);
+      state.quiz = null;
+      state.view = 'dashboard';
+      render();
+    }
+    return;
+  }
+  if(action==='end-quiz-early'){
+    if(confirm('End the quiz now? Any unanswered questions will be marked incorrect, and your score will reflect only what you completed.')){
+      await finishQuiz();
+    }
+    return;
+  }
 
   if(action==='set-confidence'){
     const idx=t.dataset.idx; if(!state.quiz.reviewDraft[idx]) state.quiz.reviewDraft[idx]={confidence:null,clue:'',fact:'',why:''};
