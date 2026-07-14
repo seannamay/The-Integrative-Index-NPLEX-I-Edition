@@ -259,7 +259,7 @@ const CONF_LABELS = {unknown:'Did not know', guessed:'Guessed', understood:'Unde
 
 const state = {
   view:'dashboard', questions:[], attempts:[], reviews:[], flags:[], feedback:[], feedbackVotes:[],
-  bankFilter:'all', bankSearch:'', bankFlaggedOnly:false, bankSelected:[], editingId:null, quiz:null,
+  bankFilter:'all', bankSearch:'', bankFlaggedOnly:false, bankInstructorOnly:false, bankSelected:[], editingId:null, quiz:null,
   reviewFilterSystem:'all', reviewFilterConf:'all', feedbackFilter:'all',
   session:null, authMode:'signin', navOpen:false,
 };
@@ -270,7 +270,7 @@ function shuffle(arr){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){const 
 function escapeHtml(s){ return (s||'').replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 function escapeAttr(s){ return (s||'').replace(/"/g,'&quot;'); }
 
-function rowToQuestion(r){ return {id:r.id, system:r.system, stem:r.stem, options:r.options, correct:r.correct, explanation:r.explanation||'', createdBy:r.created_by, createdByEmail:r.created_by_email}; }
+function rowToQuestion(r){ return {id:r.id, system:r.system, stem:r.stem, options:r.options, correct:r.correct, explanation:r.explanation||'', source:r.source||'', isInstructor:!!r.is_instructor, createdBy:r.created_by, createdByEmail:r.created_by_email}; }
 function rowToAttempt(r){ return {id:r.id, mode:r.mode, perQ:r.per_q, total:r.total, correct:r.correct, questions:r.questions, date:new Date(r.created_at).getTime()}; }
 function rowToReview(r){ return {id:r.id, system:r.system, stem:r.stem, options:r.options, chosenIndex:r.chosen_index, correctIndex:r.correct_index, explanation:r.explanation||'', confidence:r.confidence, clueMissed:r.clue_missed||'', factUnknown:r.fact_unknown||'', whyWrong:r.why_wrong||'', date:new Date(r.created_at).getTime()}; }
 function rowToFlag(r){ return {id:r.id, questionId:r.question_id, flaggedBy:r.flagged_by, flaggedByEmail:r.flagged_by_email, reason:r.reason, date:new Date(r.created_at).getTime()}; }
@@ -450,6 +450,7 @@ function renderBank(){
     if(state.bankFilter!=='all' && q.system!==state.bankFilter) return false;
     if(state.bankSearch && !q.stem.toLowerCase().includes(state.bankSearch.toLowerCase())) return false;
     if(state.bankFlaggedOnly && flagsFor(q.id).length===0) return false;
+    if(state.bankInstructorOnly && !q.isInstructor) return false;
     return true;
   });
   return `
@@ -466,6 +467,8 @@ function renderBank(){
         <div class="grid2">${[0,1,2,3].map(i=>`<div class="formrow"><label class="field-label">Option ${String.fromCharCode(65+i)}</label><input type="text" name="opt${i}" value="${editing?escapeAttr(editing.options[i]):''}" placeholder="Response alternative ${String.fromCharCode(65+i)}"></div>`).join('')}</div>
         <div class="formrow"><label class="field-label">Correct answer</label><select name="correct">${[0,1,2,3].map(i=>`<option value="${i}" ${editing&&editing.correct===i?'selected':''}>Option ${String.fromCharCode(65+i)}</option>`).join('')}</select></div>
         <div class="formrow"><label class="field-label">Explanation (shown after answering)</label><textarea name="explanation" placeholder="Why the keyed answer is correct, and why distractors are wrong.">${editing?escapeHtml(editing.explanation||''):''}</textarea></div>
+        <div class="formrow"><label class="field-label">Source (optional)</label><input type="text" name="source" value="${editing?escapeAttr(editing.source||''):''}" placeholder="e.g. Dr. Smith's Cardio lecture, Week 4"></div>
+        <div class="formrow"><label class="checkchip"><input type="checkbox" name="isInstructor" ${editing&&editing.isInstructor?'checked':''}> This question is from instructor material</label></div>
         <div style="display:flex;gap:10px;"><button type="submit" class="btn teal">${editing?'Save changes':'Add question'}</button>${editing?'<button type="button" class="btn secondary" data-action="cancel-edit">Cancel</button>':''}</div>
         <div class="errtext" id="qformError"></div>
       </form>
@@ -476,6 +479,7 @@ function renderBank(){
         <select id="bankFilterSel" style="max-width:220px;"><option value="all" ${state.bankFilter==='all'?'selected':''}>All systems</option>${SYSTEMS.map(s=>`<option value="${s.key}" ${state.bankFilter===s.key?'selected':''}>${s.label}</option>`).join('')}</select>
         <input type="text" id="bankSearchInput" placeholder="Search question text…" value="${escapeAttr(state.bankSearch)}">
         <label class="checkchip"><input type="checkbox" id="bankFlaggedOnly" ${state.bankFlaggedOnly?'checked':''}> Flagged only</label>
+        <label class="checkchip"><input type="checkbox" id="bankInstructorOnly" ${state.bankInstructorOnly?'checked':''}> Instructor only</label>
         <button class="btn secondary btn-sm" data-action="export-bank">Export JSON</button>
       </div>
       <div class="searchbar">
@@ -492,7 +496,7 @@ function renderBank(){
         const myFlag = qFlags.find(f=>f.flaggedBy===myId);
         return `<tr data-qid="${q.id}">
         <td data-label="Select">${q.createdBy===myId?`<input type="checkbox" class="bank-select-checkbox" data-id="${q.id}" ${state.bankSelected.includes(q.id)?'checked':''}>`:''}</td>
-        <td data-label="System"><span class="chip neutral">${sysNum(q.system)}</span></td>
+        <td data-label="System"><span class="chip neutral">${sysNum(q.system)}</span>${q.isInstructor?' <span class="chip teal">Instructor</span>':''}</td>
         <td data-label="Question" class="stem-hover" data-id="${q.id}">${escapeHtml(q.stem.length>90?q.stem.slice(0,90)+'…':q.stem)}${qFlags.length?` <span class="chip coral" title="${escapeAttr(qFlags.map(f=>f.reason).join(' · '))}">Flagged ×${qFlags.length}</span>`:''}</td>
         <td class="helptext" data-label="Added by">${q.createdBy===myId?'You':escapeHtml((q.createdByEmail||'classmate').split('@')[0])}</td>
         <td data-label="Actions">
@@ -532,6 +536,7 @@ function renderTimedSetup(){
       <div class="formrow"><label class="field-label">Number of questions</label><div class="checkgrid">${[10,20,40].map(n=>`<label class="checkchip"><input type="radio" name="count" value="${n}" ${n===10?'checked':''}> ${n} questions</label>`).join('')}</div></div>
       <div class="formrow"><label class="field-label">Seconds per question</label><input type="number" name="perQ" value="120" min="15" max="600" style="max-width:140px;"><div class="helptext">~120s ≈ 2 minutes per item.</div></div>
       <div class="formrow"><label class="field-label">Systems to include</label><div class="checkgrid"><label class="checkchip"><input type="checkbox" name="sysAll" checked> All systems</label>${SYSTEMS.map(s=>`<label class="checkchip sys-individual" style="display:none;"><input type="checkbox" name="sys" value="${s.key}"> ${s.label}</label>`).join('')}</div></div>
+      <div class="formrow"><label class="checkchip"><input type="checkbox" name="instructorOnly"> Instructor material only</label></div>
       <button type="submit" class="btn teal" style="margin-top:10px;">Start timed quiz</button>
     </form></div>`;
 }
@@ -543,6 +548,7 @@ function renderExamSetup(){
     <div class="card"><form id="examForm">
       <div class="formrow"><label class="field-label">Exam length</label><div class="checkgrid"><label class="checkchip"><input type="radio" name="count" value="50"> 50 questions</label><label class="checkchip"><input type="radio" name="count" value="100" checked> 100 questions (one session)</label><label class="checkchip"><input type="radio" name="count" value="200"> 200 questions (full exam)</label></div></div>
       <div class="formrow"><label class="field-label">Seconds per question</label><input type="number" name="perQ" value="90" min="15" max="600" style="max-width:140px;"><div class="helptext">NPLEX I paces ~90 seconds/item; adjust freely.</div></div>
+      <div class="formrow"><label class="checkchip"><input type="checkbox" name="instructorOnly"> Instructor material only</label></div>
       <button type="submit" class="btn teal" style="margin-top:10px;">Generate random exam</button>
     </form></div>`;
 }
@@ -958,6 +964,7 @@ document.addEventListener('input', (e)=>{
     render(); return;
   }
   if(e.target.id==='bankFlaggedOnly'){ state.bankFlaggedOnly=e.target.checked; render(); return; }
+  if(e.target.id==='bankInstructorOnly'){ state.bankInstructorOnly=e.target.checked; render(); return; }
   if(e.target.id==='feedbackFilterSel'){ state.feedbackFilter=e.target.value; render(); return; }
   if(e.target.id==='revFilterSys'){ state.reviewFilterSystem=e.target.value; render(); return; }
   if(e.target.id==='revFilterConf'){ state.reviewFilterConf=e.target.value; render(); return; }
@@ -975,9 +982,13 @@ function renderBankPreserveFocus(){
    ===================================================================== */
 function showQuestionPreview(q, evt){
   const tip = document.getElementById('questionPreview');
+  const meta = [];
+  if(q.explanation) meta.push(escapeHtml(q.explanation));
+  if(q.source) meta.push('Source: '+escapeHtml(q.source));
+  if(q.isInstructor) meta.push('<strong style="color:var(--teal);">Instructor material</strong>');
   tip.innerHTML = `<div class="qp-stem">${escapeHtml(q.stem)}</div>` +
     q.options.map((opt,i)=>`<div class="qp-opt ${i===q.correct?'correct':''}">${String.fromCharCode(65+i)}. ${escapeHtml(opt)}${i===q.correct?' ✓':''}</div>`).join('') +
-    (q.explanation?`<div class="qp-explain">${escapeHtml(q.explanation)}</div>`:'');
+    (meta.length?`<div class="qp-explain">${meta.join('<br>')}</div>`:'');
   tip.style.display = 'block';
   positionQuestionPreview(evt);
 }
@@ -1015,12 +1026,14 @@ document.addEventListener('submit', async (e)=>{
     const f = e.target; const opts = [0,1,2,3].map(i=>f['opt'+i].value.trim());
     const errEl = document.getElementById('qformError');
     if(opts.some(o=>!o) || !f.stem.value.trim()){ errEl.textContent='Please fill in the stem and all four options.'; return; }
-    const payload = { system:f.system.value, stem:f.stem.value.trim(), options:opts, correct:parseInt(f.correct.value,10), explanation:f.explanation.value.trim() };
+    const payload = { system:f.system.value, stem:f.stem.value.trim(), options:opts, correct:parseInt(f.correct.value,10), explanation:f.explanation.value.trim(), source:f.source.value.trim(), is_instructor:f.isInstructor.checked };
     const editingId = f.dataset.editing;
     if(editingId){
       const {error} = await sb.from('questions').update(payload).eq('id', editingId);
       if(error){ errEl.textContent = error.message; return; }
-      const q = state.questions.find(q=>q.id===editingId); Object.assign(q,payload); state.editingId=null;
+      const q = state.questions.find(q=>q.id===editingId);
+      q.system=payload.system; q.stem=payload.stem; q.options=payload.options; q.correct=payload.correct; q.explanation=payload.explanation; q.source=payload.source; q.isInstructor=payload.is_instructor;
+      state.editingId=null;
       render();
       requestAnimationFrame(()=>{
         const rowEl = document.querySelector(`tr[data-qid="${editingId}"]`);
@@ -1053,16 +1066,16 @@ document.addEventListener('submit', async (e)=>{
     const sysAll = f.sysAll.checked;
     let systems = sysAll ? SYSTEMS.map(s=>s.key) : Array.from(f.querySelectorAll('input[name=sys]:checked')).map(el=>el.value);
     if(systems.length===0) systems = SYSTEMS.map(s=>s.key);
-    const pool = state.questions.filter(q=>systems.includes(q.system));
-    if(pool.length===0){ alert('No questions in the bank for the selected systems.'); return; }
+    const pool = state.questions.filter(q=>systems.includes(q.system) && (!f.instructorOnly.checked || q.isInstructor));
+    if(pool.length===0){ alert(f.instructorOnly.checked? 'No instructor-tagged questions match the selected systems.' : 'No questions in the bank for the selected systems.'); return; }
     const actualCount = Math.min(count,pool.length);
     if(actualCount<count && !confirm(`Only ${pool.length} question(s) available for this selection. Start a ${actualCount}-question quiz instead?`)) return;
     startQuiz('timed',pool,actualCount,perQ); return;
   }
   if(e.target.id==='examForm'){
     const f = e.target; const count = parseInt(f.count.value,10); const perQ = parseInt(f.perQ.value,10)||90;
-    const pool = state.questions;
-    if(pool.length===0){ alert('The question bank is empty. Add questions first.'); return; }
+    const pool = f.instructorOnly.checked ? state.questions.filter(q=>q.isInstructor) : state.questions;
+    if(pool.length===0){ alert(f.instructorOnly.checked? 'No instructor-tagged questions are in the bank yet.' : 'The question bank is empty. Add questions first.'); return; }
     const actualCount = Math.min(count,pool.length);
     if(actualCount<count && !confirm(`Only ${pool.length} question(s) in the bank. Start a ${actualCount}-question exam instead?`)) return;
     startQuiz('exam',pool,actualCount,perQ); return;
