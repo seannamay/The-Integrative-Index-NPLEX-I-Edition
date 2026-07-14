@@ -107,6 +107,13 @@
   .errtext{font-size:12.5px;color:var(--coral);margin-top:8px;}
   .notice{background:var(--amber-soft);color:var(--amber);border-radius:7px;padding:10px 14px;font-size:13px;margin-bottom:14px;}
   hr.hair{border:none;border-top:1px solid var(--line);margin:18px 0;}
+  #questionPreview{position:fixed;z-index:100;display:none;max-width:340px;background:#fff;border:1px solid var(--line-strong);border-radius:8px;padding:12px 14px;box-shadow:0 10px 28px rgba(22,34,31,0.18);font-size:12.5px;pointer-events:none;line-height:1.5;}
+  #questionPreview .qp-stem{font-size:13px;color:var(--ink);margin-bottom:8px;}
+  #questionPreview .qp-opt{padding:3px 0;color:var(--ink-soft);}
+  #questionPreview .qp-opt.correct{color:var(--teal);font-weight:600;}
+  #questionPreview .qp-explain{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);color:var(--ink-soft);}
+  tr.just-saved{background:var(--teal-soft) !important;transition:background 1.8s ease;}
+  @media (hover:none){ #questionPreview{display:none !important;} }
 
   #authScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;width:100%;overflow-y:auto;padding:24px 14px;}
   .authcard{background:var(--paper-raised);border:1px solid var(--line);border-radius:12px;padding:36px;max-width:380px;width:100%;}
@@ -212,6 +219,7 @@
     <main id="main"></main>
   </div>
 </div>
+<div id="questionPreview"></div>
 
 <script>
 const SUPABASE_URL = 'https://qsarmpgqrbchcxcmdjia.supabase.co';
@@ -221,19 +229,21 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const ALLOWED_EMAIL_DOMAIN = 'nunm.edu';
 
 const SYSTEMS = [
-  {key:'general',   label:'General Biomedical Science', num:'00', hint:'Genetics, microbiology & immunology, and pathology not tied to one organ system'},
+  {key:'general',   label:'General Biomedical Science', num:'00', hint:'Pathology and other biomedical science topics not tied to one organ system'},
   {key:'biochem',    label:'Biochemistry',               num:'01', hint:'Metabolism, enzymology, nutrition biochemistry, molecular biology'},
-  {key:'cardio',     label:'Cardiovascular',              num:'02'},
-  {key:'endocrine',  label:'Endocrine',                   num:'03'},
-  {key:'gi',         label:'Gastrointestinal',            num:'04'},
-  {key:'heme',       label:'Hematopoietic & Lymphatic',   num:'05'},
-  {key:'immune',     label:'Immunological',                num:'06'},
-  {key:'integument', label:'Integumentary',                num:'07'},
-  {key:'msk',        label:'Musculoskeletal',              num:'08'},
-  {key:'neuro',      label:'Nervous System',               num:'09'},
-  {key:'renal',      label:'Renal & Urinary',              num:'10'},
-  {key:'repro',      label:'Reproductive',                 num:'11'},
-  {key:'resp',       label:'Respiratory',                  num:'12'},
+  {key:'genetics',   label:'Genetics',                   num:'02', hint:'Inheritance patterns, molecular genetics, genetic disorders'},
+  {key:'micro',      label:'Microbiology',                num:'03', hint:'Bacteriology, virology, mycology, parasitology'},
+  {key:'cardio',     label:'Cardiovascular',              num:'04'},
+  {key:'endocrine',  label:'Endocrine',                   num:'05'},
+  {key:'gi',         label:'Gastrointestinal',            num:'06'},
+  {key:'heme',       label:'Hematopoietic & Lymphatic',   num:'07'},
+  {key:'immune',     label:'Immunological',                num:'08'},
+  {key:'integument', label:'Integumentary',                num:'09'},
+  {key:'msk',        label:'Musculoskeletal',              num:'10'},
+  {key:'neuro',      label:'Nervous System',               num:'11'},
+  {key:'renal',      label:'Renal & Urinary',              num:'12'},
+  {key:'repro',      label:'Reproductive',                 num:'13'},
+  {key:'resp',       label:'Respiratory',                  num:'14'},
 ];
 const NAV = [
   {key:'dashboard', label:'Dashboard'},
@@ -249,7 +259,7 @@ const CONF_LABELS = {unknown:'Did not know', guessed:'Guessed', understood:'Unde
 
 const state = {
   view:'dashboard', questions:[], attempts:[], reviews:[], flags:[], feedback:[], feedbackVotes:[],
-  bankFilter:'all', bankSearch:'', bankFlaggedOnly:false, editingId:null, quiz:null,
+  bankFilter:'all', bankSearch:'', bankFlaggedOnly:false, bankSelected:[], editingId:null, quiz:null,
   reviewFilterSystem:'all', reviewFilterConf:'all', feedbackFilter:'all',
   session:null, authMode:'signin', navOpen:false,
 };
@@ -468,14 +478,22 @@ function renderBank(){
         <label class="checkchip"><input type="checkbox" id="bankFlaggedOnly" ${state.bankFlaggedOnly?'checked':''}> Flagged only</label>
         <button class="btn secondary btn-sm" data-action="export-bank">Export JSON</button>
       </div>
+      <div class="searchbar">
+        <label class="checkchip"><input type="checkbox" id="bankSelectAll"> Select all mine (visible)</label>
+        <select id="bulkTargetSystem" style="max-width:220px;">${SYSTEMS.map(s=>`<option value="${s.key}">${s.num} — ${s.label}</option>`).join('')}</select>
+        <button class="btn secondary btn-sm" data-action="bulk-reassign" ${state.bankSelected.length===0?'disabled':''}>Reassign selected (${state.bankSelected.length})</button>
+        ${state.bankSelected.length?`<button class="btn ghost btn-sm" data-action="bulk-clear-selection">Clear selection</button>`:''}
+      </div>
+      <p class="helptext" style="margin:-6px 0 14px 0;">You can only select and reassign questions you added yourself. Hover a question on a desktop browser to preview it in full.</p>
       ${filtered.length===0?'<div class="empty">No questions match. Add your first question above, or adjust the filter.</div>':`
-      <div class="table-scroll"><table><thead><tr><th style="width:70px;">System</th><th>Stem</th><th style="width:130px;">Added by</th><th style="width:230px;"></th></tr></thead><tbody>
+      <div class="table-scroll"><table><thead><tr><th style="width:40px;">Select</th><th style="width:70px;">System</th><th>Stem</th><th style="width:130px;">Added by</th><th style="width:230px;"></th></tr></thead><tbody>
       ${filtered.map(q=>{
         const qFlags = flagsFor(q.id);
         const myFlag = qFlags.find(f=>f.flaggedBy===myId);
-        return `<tr>
+        return `<tr data-qid="${q.id}">
+        <td data-label="Select">${q.createdBy===myId?`<input type="checkbox" class="bank-select-checkbox" data-id="${q.id}" ${state.bankSelected.includes(q.id)?'checked':''}>`:''}</td>
         <td data-label="System"><span class="chip neutral">${sysNum(q.system)}</span></td>
-        <td data-label="Question">${escapeHtml(q.stem.length>90?q.stem.slice(0,90)+'…':q.stem)}${qFlags.length?` <span class="chip coral" title="${escapeAttr(qFlags.map(f=>f.reason).join(' · '))}">Flagged ×${qFlags.length}</span>`:''}</td>
+        <td data-label="Question" class="stem-hover" data-id="${q.id}">${escapeHtml(q.stem.length>90?q.stem.slice(0,90)+'…':q.stem)}${qFlags.length?` <span class="chip coral" title="${escapeAttr(qFlags.map(f=>f.reason).join(' · '))}">Flagged ×${qFlags.length}</span>`:''}</td>
         <td class="helptext" data-label="Added by">${q.createdBy===myId?'You':escapeHtml((q.createdByEmail||'classmate').split('@')[0])}</td>
         <td data-label="Actions">
           ${q.createdBy===myId?`<button class="btn ghost btn-sm" data-action="edit-question" data-id="${q.id}">Edit</button> <button class="btn danger btn-sm" data-action="delete-question" data-id="${q.id}">Delete</button> `:''}
@@ -797,6 +815,19 @@ document.addEventListener('click', async (e)=>{
   }
   if(action==='goto-system'){ state.bankFilter=t.dataset.key; state.view='bank'; render(); return; }
 
+  if(action==='bulk-reassign'){
+    if(state.bankSelected.length===0) return;
+    const target = document.getElementById('bulkTargetSystem').value;
+    if(!confirm(`Reassign ${state.bankSelected.length} question(s) to ${sysLabel(target)}?`)) return;
+    const {error} = await sb.from('questions').update({system:target}).in('id', state.bankSelected);
+    if(error){ alert('Could not reassign: '+error.message); return; }
+    state.questions.forEach(q=>{ if(state.bankSelected.includes(q.id)) q.system = target; });
+    state.bankSelected = [];
+    render();
+    return;
+  }
+  if(action==='bulk-clear-selection'){ state.bankSelected = []; render(); return; }
+
   if(action==='flag-question'){
     const reason = prompt('Why are you flagging this question? (e.g. wrong answer key, unclear wording, outdated info)');
     if(!reason || !reason.trim()) return;
@@ -909,6 +940,23 @@ document.addEventListener('input', (e)=>{
   }
   if(e.target.id==='bankSearchInput'){ state.bankSearch=e.target.value; renderBankPreserveFocus(); return; }
   if(e.target.id==='bankFilterSel'){ state.bankFilter=e.target.value; render(); return; }
+  if(e.target.classList.contains('bank-select-checkbox')){
+    const id = e.target.dataset.id;
+    if(e.target.checked){ if(!state.bankSelected.includes(id)) state.bankSelected.push(id); }
+    else { state.bankSelected = state.bankSelected.filter(x=>x!==id); }
+    render(); return;
+  }
+  if(e.target.id==='bankSelectAll'){
+    const myId = state.session.user.id;
+    const visible = state.questions.filter(q=>{
+      if(state.bankFilter!=='all' && q.system!==state.bankFilter) return false;
+      if(state.bankSearch && !q.stem.toLowerCase().includes(state.bankSearch.toLowerCase())) return false;
+      if(state.bankFlaggedOnly && flagsFor(q.id).length===0) return false;
+      return q.createdBy===myId;
+    }).map(q=>q.id);
+    state.bankSelected = e.target.checked ? visible : [];
+    render(); return;
+  }
   if(e.target.id==='bankFlaggedOnly'){ state.bankFlaggedOnly=e.target.checked; render(); return; }
   if(e.target.id==='feedbackFilterSel'){ state.feedbackFilter=e.target.value; render(); return; }
   if(e.target.id==='revFilterSys'){ state.reviewFilterSystem=e.target.value; render(); return; }
@@ -922,6 +970,45 @@ function renderBankPreserveFocus(){
   if(el){ el.focus(); if(cursorPos!=null) el.setSelectionRange(cursorPos,cursorPos); }
 }
 
+/* =====================================================================
+   HOVER PREVIEW for question bank rows
+   ===================================================================== */
+function showQuestionPreview(q, evt){
+  const tip = document.getElementById('questionPreview');
+  tip.innerHTML = `<div class="qp-stem">${escapeHtml(q.stem)}</div>` +
+    q.options.map((opt,i)=>`<div class="qp-opt ${i===q.correct?'correct':''}">${String.fromCharCode(65+i)}. ${escapeHtml(opt)}${i===q.correct?' ✓':''}</div>`).join('') +
+    (q.explanation?`<div class="qp-explain">${escapeHtml(q.explanation)}</div>`:'');
+  tip.style.display = 'block';
+  positionQuestionPreview(evt);
+}
+function positionQuestionPreview(evt){
+  const tip = document.getElementById('questionPreview');
+  const pad = 16, tw = 340;
+  let x = evt.clientX + pad;
+  let y = evt.clientY + pad;
+  if(x + tw > window.innerWidth) x = evt.clientX - tw - pad;
+  if(y + 260 > window.innerHeight) y = Math.max(10, evt.clientY - 260);
+  tip.style.left = x+'px';
+  tip.style.top = y+'px';
+}
+document.addEventListener('mouseover', (e)=>{
+  const cell = e.target.closest('.stem-hover');
+  if(!cell) return;
+  const q = state.questions.find(q=>q.id===cell.dataset.id);
+  if(!q) return;
+  showQuestionPreview(q, e);
+});
+document.addEventListener('mousemove', (e)=>{
+  const tip = document.getElementById('questionPreview');
+  if(tip && tip.style.display==='block'){ positionQuestionPreview(e); }
+});
+document.addEventListener('mouseout', (e)=>{
+  const cell = e.target.closest('.stem-hover');
+  if(!cell) return;
+  if(e.relatedTarget && cell.contains(e.relatedTarget)) return;
+  document.getElementById('questionPreview').style.display='none';
+});
+
 document.addEventListener('submit', async (e)=>{
   e.preventDefault();
   if(e.target.id==='qform'){
@@ -934,6 +1021,16 @@ document.addEventListener('submit', async (e)=>{
       const {error} = await sb.from('questions').update(payload).eq('id', editingId);
       if(error){ errEl.textContent = error.message; return; }
       const q = state.questions.find(q=>q.id===editingId); Object.assign(q,payload); state.editingId=null;
+      render();
+      requestAnimationFrame(()=>{
+        const rowEl = document.querySelector(`tr[data-qid="${editingId}"]`);
+        if(rowEl){
+          rowEl.scrollIntoView({behavior:'smooth', block:'center'});
+          rowEl.classList.add('just-saved');
+          setTimeout(()=>rowEl.classList.remove('just-saved'), 2000);
+        }
+      });
+      return;
     } else {
       const {data,error} = await sb.from('questions').insert({ ...payload, created_by: state.session.user.id, created_by_email: state.session.user.email }).select().single();
       if(error){ errEl.textContent = error.message; return; }
