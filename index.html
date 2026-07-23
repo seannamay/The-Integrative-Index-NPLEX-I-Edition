@@ -273,7 +273,7 @@ function escapeAttr(s){ return (s||'').replace(/"/g,'&quot;'); }
 function rowToQuestion(r){ return {id:r.id, system:r.system, stem:r.stem, options:r.options, correct:r.correct, explanation:r.explanation||'', source:r.source||'', isInstructor:!!r.is_instructor, createdBy:r.created_by, createdByEmail:r.created_by_email}; }
 function rowToAttempt(r){ return {id:r.id, mode:r.mode, perQ:r.per_q, total:r.total, correct:r.correct, questions:r.questions, date:new Date(r.created_at).getTime()}; }
 function rowToReview(r){ return {id:r.id, system:r.system, stem:r.stem, options:r.options, chosenIndex:r.chosen_index, correctIndex:r.correct_index, explanation:r.explanation||'', confidence:r.confidence, clueMissed:r.clue_missed||'', factUnknown:r.fact_unknown||'', whyWrong:r.why_wrong||'', date:new Date(r.created_at).getTime()}; }
-function rowToFlag(r){ return {id:r.id, questionId:r.question_id, flaggedBy:r.flagged_by, flaggedByEmail:r.flagged_by_email, reason:r.reason, date:new Date(r.created_at).getTime()}; }
+function rowToFlag(r){ return {id:r.id, questionId:r.question_id, flaggedBy:r.flagged_by, flaggedByEmail:r.flagged_by_email, reason:r.reason, resolved:!!r.resolved, resolvedAt:r.resolved_at, resolutionNote:r.resolution_note||'', date:new Date(r.created_at).getTime()}; }
 function rowToFeedback(r){ return {id:r.id, userId:r.user_id, userEmail:r.user_email, category:r.category, message:r.message, date:new Date(r.created_at).getTime()}; }
 function rowToVote(r){ return {id:r.id, feedbackId:r.feedback_id, userId:r.user_id}; }
 
@@ -325,6 +325,7 @@ function ekgSVG(accuracy,hasData,width,confidence){
   return `<svg width="${width}" height="${h}" viewBox="0 0 ${width} ${h}" preserveAspectRatio="none"><polyline points="${p}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"${lowConf?' stroke-dasharray="4 3" opacity="0.55"':''}/></svg>`;
 }
 function flagsFor(questionId){ return state.flags.filter(f=>f.questionId===questionId); }
+function activeFlagsFor(questionId){ return state.flags.filter(f=>f.questionId===questionId && !f.resolved); }
 function feedbackVotesFor(feedbackId){ return state.feedbackVotes.filter(v=>v.feedbackId===feedbackId); }
 
 function showAuthScreen(){
@@ -445,11 +446,11 @@ function renderDashboard(){
 function renderBank(){
   const editing = state.editingId ? state.questions.find(q=>q.id===state.editingId) : null;
   const myId = state.session.user.id;
-  const totalFlagged = state.questions.filter(q=>flagsFor(q.id).length>0).length;
+  const totalFlagged = state.questions.filter(q=>activeFlagsFor(q.id).length>0).length;
   const filtered = state.questions.filter(q=>{
     if(state.bankFilter!=='all' && q.system!==state.bankFilter) return false;
     if(state.bankSearch && !q.stem.toLowerCase().includes(state.bankSearch.toLowerCase())) return false;
-    if(state.bankFlaggedOnly && flagsFor(q.id).length===0) return false;
+    if(state.bankFlaggedOnly && activeFlagsFor(q.id).length===0) return false;
     if(state.bankInstructorOnly && !q.isInstructor) return false;
     return true;
   });
@@ -492,8 +493,9 @@ function renderBank(){
       ${filtered.length===0?'<div class="empty">No questions match. Add your first question above, or adjust the filter.</div>':`
       <div class="table-scroll"><table><thead><tr><th style="width:40px;">Select</th><th style="width:70px;">System</th><th>Stem</th><th style="width:130px;">Added by</th><th style="width:230px;"></th></tr></thead><tbody>
       ${filtered.map(q=>{
-        const qFlags = flagsFor(q.id);
+        const qFlags = activeFlagsFor(q.id);
         const myFlag = qFlags.find(f=>f.flaggedBy===myId);
+        const canResolve = qFlags.length>0 && (q.createdBy===myId || !!myFlag);
         return `<tr data-qid="${q.id}">
         <td data-label="Select">${q.createdBy===myId?`<input type="checkbox" class="bank-select-checkbox" data-id="${q.id}" ${state.bankSelected.includes(q.id)?'checked':''}>`:''}</td>
         <td data-label="System"><span class="chip neutral">${sysNum(q.system)}</span>${q.isInstructor?' <span class="chip teal">Instructor</span>':''}</td>
@@ -502,6 +504,7 @@ function renderBank(){
         <td data-label="Actions">
           ${q.createdBy===myId?`<button class="btn ghost btn-sm" data-action="edit-question" data-id="${q.id}">Edit</button> <button class="btn danger btn-sm" data-action="delete-question" data-id="${q.id}">Delete</button> `:''}
           ${myFlag?`<button class="btn warn btn-sm" data-action="unflag-question" data-id="${myFlag.id}">Unflag</button>`:`<button class="btn ghost btn-sm" data-action="flag-question" data-id="${q.id}">Flag</button>`}
+          ${canResolve?` <button class="btn secondary btn-sm" data-action="resolve-flags" data-id="${q.id}">Resolve (${qFlags.length})</button>`:''}
         </td>
       </tr>`;}).join('')}
       </tbody></table></div>`}
@@ -600,7 +603,7 @@ function renderQuizRunner(){
   const quiz = state.quiz; const q = quiz.questions[quiz.index]; const ans = quiz.answers[quiz.index];
   const eliminated = ans.eliminated || [];
   const myId = state.session.user.id;
-  const myFlag = flagsFor(q.id).find(f=>f.flaggedBy===myId);
+  const myFlag = activeFlagsFor(q.id).find(f=>f.flaggedBy===myId);
   return `
     <div class="quizbar"><div><div class="eyebrow">${quiz.mode==='exam'?'Random exam':'Timed quiz'} · Question ${quiz.index+1} of ${quiz.questions.length}</div><div class="helptext">${sysLabel(q.system)}</div></div><div class="timerbox" id="quizTimerBox"><span id="quizTimerText">${fmtTime(quiz.remaining)}</span></div></div>
     <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
@@ -642,7 +645,7 @@ function renderResults(){
 function renderResultItem(q,idx){
   const isCorrect = q.correct;
   const myId = state.session.user.id;
-  const myFlag = flagsFor(q.qId).find(f=>f.flaggedBy===myId);
+  const myFlag = activeFlagsFor(q.qId).find(f=>f.flaggedBy===myId);
   const draft = state.quiz.reviewDraft[idx] || {confidence:null,clue:'',fact:'',why:''};
   const saved = state.quiz.reviewDraft[idx] && state.quiz.reviewDraft[idx].saved;
   return `<div class="qcard" data-review-idx="${idx}">
@@ -777,7 +780,7 @@ function renderAbout(){
 
     <div class="card">
       <div class="card-title">Feedback, corrections &amp; data requests</div>
-      <p>To flag an incorrect or unclear question, use the Flag button next to it in the Question Bank. To suggest a feature or report a bug, use the Feedback &amp; Requests page. For anything else — including requesting deletion of your account or contributed content — contact <strong>[seanna.vanbrunt@nunm.edu]</strong>.</p>
+      <p>To flag an incorrect or unclear question, use the Flag button next to it in the Question Bank. To suggest a feature or report a bug, use the Feedback &amp; Requests page. For anything else — including requesting deletion of your account or contributed content — contact <strong>[replace with your contact email]</strong>.</p>
     </div>
   `;
 }
@@ -845,6 +848,20 @@ document.addEventListener('click', async (e)=>{
     const {error} = await sb.from('flags').delete().eq('id', t.dataset.id);
     if(error){ alert(error.message); return; }
     state.flags = state.flags.filter(f=>f.id!==t.dataset.id); render(); return;
+  }
+  if(action==='resolve-flags'){
+    const note = prompt('Optional note on how this was resolved (e.g. "Fixed the answer key" — leave blank to skip):');
+    if(note===null) return;
+    const nowIso = new Date().toISOString();
+    const {data,error} = await sb.from('flags').update({resolved:true, resolved_at:nowIso, resolution_note:note||''}).eq('question_id', t.dataset.id).eq('resolved', false).select();
+    if(error){ alert('Could not resolve: '+error.message); return; }
+    (data||[]).forEach(row=>{
+      const f = state.flags.find(fl=>fl.id===row.id);
+      if(f){ f.resolved=true; f.resolvedAt=row.resolved_at; f.resolutionNote=row.resolution_note||''; }
+    });
+    if(!data || data.length===0){ alert('No flags were resolved — you may not have permission to resolve flags raised by other students on this question.'); }
+    render();
+    return;
   }
 
   if(action==='toggle-vote'){
