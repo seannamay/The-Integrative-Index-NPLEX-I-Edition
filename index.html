@@ -536,8 +536,9 @@ function renderTimedSetup(){
     <h1 class="pagetitle">Timed Quiz</h1>
     <p class="lede">Pulls from the shared class bank. NPLEX I paces roughly 1.5 minutes per item — default here is 2 minutes so you have room to reason it out.</p>
     <div class="card"><form id="timedForm">
-      <div class="formrow"><label class="field-label">Number of questions</label><div class="checkgrid">${[10,20,40].map(n=>`<label class="checkchip"><input type="radio" name="count" value="${n}" ${n===10?'checked':''}> ${n} questions</label>`).join('')}</div></div>
-      <div class="formrow"><label class="field-label">Seconds per question</label><input type="number" name="perQ" value="120" min="15" max="600" style="max-width:140px;"><div class="helptext">~120s ≈ 2 minutes per item.</div></div>
+      <div class="formrow"><label class="field-label">Number of questions</label><div class="checkgrid">${[5,10,20,40].map(n=>`<label class="checkchip"><input type="radio" name="count" value="${n}" ${n===10?'checked':''}> ${n} questions</label>`).join('')}</div></div>
+      <div class="formrow"><label class="checkchip"><input type="checkbox" name="untimed" id="timedUntimedToggle"> Untimed (self-paced, no countdown)</label></div>
+      <div class="formrow" id="timedPerQRow"><label class="field-label">Seconds per question</label><input type="number" name="perQ" value="120" min="15" max="600" style="max-width:140px;"><div class="helptext">~120s ≈ 2 minutes per item.</div></div>
       <div class="formrow"><label class="field-label">Systems to include</label><div class="checkgrid"><label class="checkchip"><input type="checkbox" name="sysAll" checked> All systems</label>${SYSTEMS.map(s=>`<label class="checkchip sys-individual" style="display:none;"><input type="checkbox" name="sys" value="${s.key}"> ${s.label}</label>`).join('')}</div></div>
       <div class="formrow"><label class="checkchip"><input type="checkbox" name="instructorOnly"> Instructor material only</label></div>
       <button type="submit" class="btn teal" style="margin-top:10px;">Start timed quiz</button>
@@ -550,7 +551,8 @@ function renderExamSetup(){
     <p class="lede">The real NPLEX I Biomedical Science Examination is 200 items across two 2.5-hour sessions (~100 items each). This draws randomly across the whole shared bank.</p>
     <div class="card"><form id="examForm">
       <div class="formrow"><label class="field-label">Exam length</label><div class="checkgrid"><label class="checkchip"><input type="radio" name="count" value="50"> 50 questions</label><label class="checkchip"><input type="radio" name="count" value="100" checked> 100 questions (one session)</label><label class="checkchip"><input type="radio" name="count" value="200"> 200 questions (full exam)</label></div></div>
-      <div class="formrow"><label class="field-label">Seconds per question</label><input type="number" name="perQ" value="90" min="15" max="600" style="max-width:140px;"><div class="helptext">NPLEX I paces ~90 seconds/item; adjust freely.</div></div>
+      <div class="formrow"><label class="checkchip"><input type="checkbox" name="untimed" id="examUntimedToggle"> Untimed (self-paced, no countdown)</label></div>
+      <div class="formrow" id="examPerQRow"><label class="field-label">Seconds per question</label><input type="number" name="perQ" value="90" min="15" max="600" style="max-width:140px;"><div class="helptext">NPLEX I paces ~90 seconds/item; adjust freely.</div></div>
       <div class="formrow"><label class="checkchip"><input type="checkbox" name="instructorOnly"> Instructor material only</label></div>
       <button type="submit" class="btn teal" style="margin-top:10px;">Generate random exam</button>
     </form></div>`;
@@ -562,17 +564,22 @@ function buildQuizQuestions(pool,count){
     return { id:q.id, system:q.system, stem:q.stem, explanation:q.explanation||'', options: idx.map(i=>q.options[i]), correct: idx.indexOf(q.correct) };
   });
 }
-function startQuiz(mode,pool,count,perQ){
+function startQuiz(mode,pool,count,perQ,untimed){
   const questions = buildQuizQuestions(pool,count);
-  state.quiz = { mode, perQ, questions, index:0, answers: questions.map(()=>({chosenIndex:null,timedOut:false,eliminated:[]})), remaining:perQ, timerId:null, resultsShowAll:false };
+  state.quiz = { mode, perQ, untimed:!!untimed, questions, index:0, answers: questions.map(()=>({chosenIndex:null,timedOut:false,eliminated:[]})), remaining:perQ, elapsed:0, timerId:null, resultsShowAll:false };
   state.navOpen = false;
   state.view='quiz'; render(); startTimer();
 }
 function startTimer(){
   clearInterval(state.quiz.timerId);
   state.quiz.timerId = setInterval(()=>{
-    state.quiz.remaining--;
     const el = document.getElementById('quizTimerText'); const box = document.getElementById('quizTimerBox');
+    if(state.quiz.untimed){
+      state.quiz.elapsed = (state.quiz.elapsed||0) + 1;
+      if(el) el.textContent = fmtTime(state.quiz.elapsed);
+      return;
+    }
+    state.quiz.remaining--;
     if(el) el.textContent = fmtTime(state.quiz.remaining);
     if(box) box.classList.toggle('low', state.quiz.remaining<=15);
     if(state.quiz.remaining<=0){ state.quiz.answers[state.quiz.index].timedOut = true; advanceQuestion(); }
@@ -581,7 +588,11 @@ function startTimer(){
 function fmtTime(s){ s=Math.max(0,s); const m=Math.floor(s/60), sec=s%60; return String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0'); }
 async function advanceQuestion(){
   clearInterval(state.quiz.timerId);
-  if(state.quiz.index < state.quiz.questions.length-1){ state.quiz.index++; state.quiz.remaining=state.quiz.perQ; render(); startTimer(); }
+  if(state.quiz.index < state.quiz.questions.length-1){
+    state.quiz.index++;
+    if(state.quiz.untimed){ state.quiz.elapsed=0; } else { state.quiz.remaining=state.quiz.perQ; }
+    render(); startTimer();
+  }
   else { await finishQuiz(); }
 }
 async function finishQuiz(){
@@ -605,7 +616,7 @@ function renderQuizRunner(){
   const myId = state.session.user.id;
   const myFlag = activeFlagsFor(q.id).find(f=>f.flaggedBy===myId);
   return `
-    <div class="quizbar"><div><div class="eyebrow">${quiz.mode==='exam'?'Random exam':'Timed quiz'} · Question ${quiz.index+1} of ${quiz.questions.length}</div><div class="helptext">${sysLabel(q.system)}</div></div><div class="timerbox" id="quizTimerBox"><span id="quizTimerText">${fmtTime(quiz.remaining)}</span></div></div>
+    <div class="quizbar"><div><div class="eyebrow">${quiz.mode==='exam'?'Random exam':'Timed quiz'} · Question ${quiz.index+1} of ${quiz.questions.length}</div><div class="helptext">${sysLabel(q.system)}</div></div><div class="timerbox" id="quizTimerBox">${quiz.untimed?'<span class="helptext" style="display:block;margin-bottom:2px;">Elapsed</span>':''}<span id="quizTimerText">${fmtTime(quiz.untimed?quiz.elapsed:quiz.remaining)}</span></div></div>
     <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
       <button class="btn ghost btn-sm" data-action="end-quiz-early">End quiz now</button>
       <button class="btn danger btn-sm" data-action="cancel-quiz">Cancel</button>
@@ -986,6 +997,8 @@ document.addEventListener('input', (e)=>{
   if(e.target.id==='revFilterSys'){ state.reviewFilterSystem=e.target.value; render(); return; }
   if(e.target.id==='revFilterConf'){ state.reviewFilterConf=e.target.value; render(); return; }
   if(e.target.name==='sysAll'){ document.querySelectorAll('.sys-individual').forEach(el=>el.style.display = e.target.checked?'none':'flex'); return; }
+  if(e.target.id==='timedUntimedToggle'){ const row=document.getElementById('timedPerQRow'); if(row) row.style.display = e.target.checked?'none':'block'; return; }
+  if(e.target.id==='examUntimedToggle'){ const row=document.getElementById('examPerQRow'); if(row) row.style.display = e.target.checked?'none':'block'; return; }
 });
 function renderBankPreserveFocus(){
   const active = document.activeElement; const cursorPos = active && active.selectionStart;
@@ -1087,7 +1100,7 @@ document.addEventListener('submit', async (e)=>{
     if(pool.length===0){ alert(f.instructorOnly.checked? 'No instructor-tagged questions match the selected systems.' : 'No questions in the bank for the selected systems.'); return; }
     const actualCount = Math.min(count,pool.length);
     if(actualCount<count && !confirm(`Only ${pool.length} question(s) available for this selection. Start a ${actualCount}-question quiz instead?`)) return;
-    startQuiz('timed',pool,actualCount,perQ); return;
+    startQuiz('timed',pool,actualCount,perQ,f.untimed.checked); return;
   }
   if(e.target.id==='examForm'){
     const f = e.target; const count = parseInt(f.count.value,10); const perQ = parseInt(f.perQ.value,10)||90;
@@ -1095,7 +1108,7 @@ document.addEventListener('submit', async (e)=>{
     if(pool.length===0){ alert(f.instructorOnly.checked? 'No instructor-tagged questions are in the bank yet.' : 'The question bank is empty. Add questions first.'); return; }
     const actualCount = Math.min(count,pool.length);
     if(actualCount<count && !confirm(`Only ${pool.length} question(s) in the bank. Start a ${actualCount}-question exam instead?`)) return;
-    startQuiz('exam',pool,actualCount,perQ); return;
+    startQuiz('exam',pool,actualCount,perQ,f.untimed.checked); return;
   }
 });
 
