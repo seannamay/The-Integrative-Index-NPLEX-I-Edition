@@ -700,6 +700,15 @@ function renderReviewLog(){
         <div style="font-size:13px;"><strong>Clue missed:</strong> ${escapeHtml(r.clueMissed)||'<span class="helptext">—</span>'}</div>
         <div style="font-size:13px;margin-top:6px;"><strong>Fact I didn't know:</strong> ${escapeHtml(r.factUnknown)||'<span class="helptext">—</span>'}</div>
         <div style="font-size:13px;margin-top:6px;"><strong>Why I picked wrong:</strong> ${escapeHtml(r.whyWrong)||'<span class="helptext">—</span>'}</div>
+        <details style="margin-top:12px;">
+          <summary style="cursor:pointer;font-size:12.5px;font-weight:600;color:var(--teal);">Show full question &amp; answer choices</summary>
+          <div class="optlist" style="margin-top:10px;">
+            ${(r.options||[]).map((opt,i)=>{ let cls=''; if(i===r.correctIndex) cls='correct'; else if(i===r.chosenIndex) cls='incorrect';
+              return `<div class="optbtn ${cls}" style="cursor:default;"><span class="optkey">${String.fromCharCode(65+i)}</span><span>${escapeHtml(opt)}</span>${i===r.correctIndex?' <span class="chip teal" style="margin-left:auto;">Correct</span>':''}${i===r.chosenIndex&&i!==r.correctIndex?' <span class="chip coral" style="margin-left:auto;">Your answer</span>':''}</div>`; }).join('')}
+            ${r.chosenIndex===null?'<div class="helptext" style="margin-top:6px;">No answer selected — time ran out.</div>':''}
+            ${r.explanation?`<div class="helptext" style="margin-top:10px;"><strong>Explanation:</strong> ${escapeHtml(r.explanation)}</div>`:''}
+          </div>
+        </details>
         <div style="margin-top:10px;"><button class="btn danger btn-sm" data-action="delete-review" data-id="${r.id}">Delete entry</button></div></div>
       `).join('')}
     </div>`;
