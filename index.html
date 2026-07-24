@@ -259,7 +259,7 @@ const NAV = [
 const CONF_LABELS = {unknown:'Did not know', guessed:'Guessed', understood:'Understood'};
 
 const state = {
-  view:'dashboard', questions:[], attempts:[], reviews:[], flags:[], feedback:[], feedbackVotes:[],
+  view:'dashboard', questions:[], attempts:[], reviews:[], flags:[], feedback:[], feedbackVotes:[], systemFlags:[],
   bankFilter:'all', bankSearch:'', bankFlaggedOnly:false, bankInstructorOnly:false, bankSelected:[], editingId:null, quiz:null,
   reviewFilterSystem:'all', reviewFilterConf:'all', reviewFilterResult:'all', feedbackFilter:'all',
   session:null, authMode:'signin', navOpen:false,
@@ -277,23 +277,26 @@ function rowToReview(r){ return {id:r.id, system:r.system, stem:r.stem, options:
 function rowToFlag(r){ return {id:r.id, questionId:r.question_id, flaggedBy:r.flagged_by, flaggedByEmail:r.flagged_by_email, reason:r.reason, resolved:!!r.resolved, resolvedAt:r.resolved_at, resolutionNote:r.resolution_note||'', date:new Date(r.created_at).getTime()}; }
 function rowToFeedback(r){ return {id:r.id, userId:r.user_id, userEmail:r.user_email, category:r.category, message:r.message, date:new Date(r.created_at).getTime()}; }
 function rowToVote(r){ return {id:r.id, feedbackId:r.feedback_id, userId:r.user_id}; }
+function rowToSystemFlag(r){ return {id:r.id, system:r.system, date:new Date(r.created_at).getTime()}; }
 
 async function loadAll(){
-  const [{data:qs, error:qErr}, {data:at, error:aErr}, {data:rv, error:rErr}, {data:fl, error:fErr}, {data:fb, error:fbErr}, {data:fv, error:fvErr}] = await Promise.all([
+  const [{data:qs, error:qErr}, {data:at, error:aErr}, {data:rv, error:rErr}, {data:fl, error:fErr}, {data:fb, error:fbErr}, {data:fv, error:fvErr}, {data:sf, error:sfErr}] = await Promise.all([
     sb.from('questions').select('*').order('created_at',{ascending:true}),
     sb.from('attempts').select('*').order('created_at',{ascending:true}),
     sb.from('reviews').select('*').order('created_at',{ascending:true}),
     sb.from('flags').select('*').order('created_at',{ascending:true}),
     sb.from('feedback').select('*').order('created_at',{ascending:true}),
     sb.from('feedback_votes').select('*').order('created_at',{ascending:true}),
+    sb.from('system_flags').select('*').order('created_at',{ascending:true}),
   ]);
-  if(qErr || aErr || rErr || fErr || fbErr || fvErr){ console.error(qErr||aErr||rErr||fErr||fbErr||fvErr); }
+  if(qErr || aErr || rErr || fErr || fbErr || fvErr || sfErr){ console.error(qErr||aErr||rErr||fErr||fbErr||fvErr||sfErr); }
   state.questions = (qs||[]).map(rowToQuestion);
   state.attempts = (at||[]).map(rowToAttempt);
   state.reviews = (rv||[]).map(rowToReview);
   state.flags = (fl||[]).map(rowToFlag);
   state.feedback = (fb||[]).map(rowToFeedback);
   state.feedbackVotes = (fv||[]).map(rowToVote);
+  state.systemFlags = (sf||[]).map(rowToSystemFlag);
 }
 
 function systemStats(){
@@ -442,6 +445,23 @@ function renderDashboard(){
           </div>`;
         }).join('') : '<div class="helptext">No attempts yet — run a timed quiz to begin.</div>'}
       </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Question tracking by system</div>
+      <p class="helptext" style="margin-top:-8px;margin-bottom:12px;">How much you've logged in your Review Log per system. Flag a system to bookmark it for focused review — you can also flag right from a quiz's results page.</p>
+      ${SYSTEMS.map(s=>{
+        const sysReviews = state.reviews.filter(r=>r.system===s.key);
+        const missedCount = sysReviews.filter(r=>!(r.chosenIndex!==null && r.chosenIndex===r.correctIndex)).length;
+        const correctCount = sysReviews.length - missedCount;
+        const flagged = state.systemFlags.some(f=>f.system===s.key);
+        return `<div class="sysrow">
+          <span class="sysnum">${s.num}</span>
+          <span class="sysname">${s.label}</span>
+          <span class="sysmeta">${sysReviews.length} logged</span>
+          <span class="sysekg helptext">${sysReviews.length?`${missedCount} missed · ${correctCount} correct`:'No entries yet'}</span>
+          <span class="systag"><button class="btn ${flagged?'teal':'ghost'} btn-sm" data-action="toggle-system-flag" data-key="${s.key}">${flagged?'★ Flagged':'☆ Flag'}</button></span>
+        </div>`;
+      }).join('')}
     </div>`;
 }
 
@@ -668,7 +688,7 @@ function renderResults(){
     <div class="eyebrow">${r.mode==='exam'?'Random exam':'Timed quiz'} complete</div>
     <h1 class="pagetitle">Results</h1>
     <div class="card"><div class="stat-hero"><div><div class="stat-big">${pct}%</div><div class="stat-label">Score</div></div><div><div class="stat-big">${r.correct}/${r.total}</div><div class="stat-label">Correct</div></div><div><div class="stat-big">${missed.length}</div><div class="stat-label">Missed</div></div></div></div>
-    <div class="card"><div class="card-title">By system</div>${Object.keys(bySys).map(k=>{ const s=bySys[k]; const acc=Math.round(s.correct/s.total*100); return `<div class="sysrow"><span class="sysname">${sysLabel(k)}</span><span class="sysmeta">${s.correct}/${s.total}</span><span class="sysekg">${ekgSVG(acc,true)}</span></div>`; }).join('')}</div>
+    <div class="card"><div class="card-title">By system</div>${Object.keys(bySys).map(k=>{ const s=bySys[k]; const acc=Math.round(s.correct/s.total*100); const flagged=state.systemFlags.some(f=>f.system===k); return `<div class="sysrow"><span class="sysname">${sysLabel(k)}</span><span class="sysmeta">${s.correct}/${s.total}</span><span class="sysekg">${ekgSVG(acc,true)}</span><span class="systag"><button class="btn ${flagged?'teal':'ghost'} btn-sm" data-action="toggle-system-flag" data-key="${k}">${flagged?'★':'☆ Flag'}</button></span></div>`; }).join('')}</div>
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
         <div class="card-title" style="margin:0;">${showAll?'All questions':'Log your missed questions'}</div>
@@ -954,6 +974,22 @@ document.addEventListener('click', async (e)=>{
     return;
   }
 
+  if(action==='toggle-system-flag'){
+    const key = t.dataset.key;
+    const myId = state.session.user.id;
+    const existing = state.systemFlags.find(f=>f.system===key);
+    if(existing){
+      const {error} = await sb.from('system_flags').delete().eq('id', existing.id);
+      if(error){ alert(error.message); return; }
+      state.systemFlags = state.systemFlags.filter(f=>f.id!==existing.id);
+    } else {
+      const {data,error} = await sb.from('system_flags').insert({ user_id: myId, system: key }).select().single();
+      if(error){ alert('Could not flag: '+error.message); return; }
+      state.systemFlags.push(rowToSystemFlag(data));
+    }
+    render();
+    return;
+  }
   if(action==='delete-attempt'){
     if(confirm('Delete this quiz attempt? It will be removed from your dashboard and mastery stats.')){
       const {error} = await sb.from('attempts').delete().eq('id', t.dataset.id);
