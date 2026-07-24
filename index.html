@@ -553,6 +553,7 @@ function renderExamSetup(){
     <p class="lede">The real NPLEX I Biomedical Science Examination is 200 items across two 2.5-hour sessions (~100 items each). This draws randomly across the whole shared bank.</p>
     <div class="card"><form id="examForm">
       <div class="formrow"><label class="field-label">Exam length</label><div class="checkgrid"><label class="checkchip"><input type="radio" name="count" value="50"> 50 questions</label><label class="checkchip"><input type="radio" name="count" value="100" checked> 100 questions (one session)</label><label class="checkchip"><input type="radio" name="count" value="200"> 200 questions (full exam)</label></div></div>
+      <div class="formrow"><label class="checkchip"><input type="checkbox" name="splitSessions" id="examSplitToggle" disabled> Split into two 100-question sessions, with a break in between</label><div class="helptext">Session 1 = questions 1–100, then a break, then Session 2 = questions 101–200 — matches the real exam structure. Only available when 200 questions is selected.</div></div>
       <div class="formrow"><label class="checkchip"><input type="checkbox" name="untimed" id="examUntimedToggle"> Untimed (self-paced, no countdown)</label></div>
       <div class="formrow" id="examPerQRow"><label class="field-label">Seconds per question</label><input type="number" name="perQ" value="90" min="15" max="600" style="max-width:140px;"><div class="helptext">NPLEX I paces ~90 seconds/item; adjust freely.</div></div>
       <div class="formrow"><label class="checkchip"><input type="checkbox" name="instructorOnly"> Instructor material only</label></div>
@@ -566,9 +567,9 @@ function buildQuizQuestions(pool,count){
     return { id:q.id, system:q.system, stem:q.stem, explanation:q.explanation||'', options: idx.map(i=>q.options[i]), correct: idx.indexOf(q.correct) };
   });
 }
-function startQuiz(mode,pool,count,perQ,untimed){
+function startQuiz(mode,pool,count,perQ,untimed,split){
   const questions = buildQuizQuestions(pool,count);
-  state.quiz = { mode, perQ, untimed:!!untimed, questions, index:0, answers: questions.map(()=>({chosenIndex:null,timedOut:false,eliminated:[]})), remaining:perQ, elapsed:0, timerId:null, resultsShowAll:false };
+  state.quiz = { mode, perQ, untimed:!!untimed, split:!!split, sessionSize:100, onBreak:false, breakTaken:false, questions, index:0, answers: questions.map(()=>({chosenIndex:null,timedOut:false,eliminated:[]})), remaining:perQ, elapsed:0, timerId:null, resultsShowAll:false };
   state.navOpen = false;
   state.view='quiz'; render(); startTimer();
 }
@@ -590,6 +591,12 @@ function startTimer(){
 function fmtTime(s){ s=Math.max(0,s); const m=Math.floor(s/60), sec=s%60; return String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0'); }
 async function advanceQuestion(){
   clearInterval(state.quiz.timerId);
+  if(state.quiz.split && !state.quiz.breakTaken && state.quiz.index === state.quiz.sessionSize-1){
+    state.quiz.breakTaken = true;
+    state.quiz.onBreak = true;
+    render();
+    return;
+  }
   if(state.quiz.index < state.quiz.questions.length-1){
     state.quiz.index++;
     if(state.quiz.untimed){ state.quiz.elapsed=0; } else { state.quiz.remaining=state.quiz.perQ; }
@@ -613,7 +620,9 @@ async function finishQuiz(){
   state.view='results'; render();
 }
 function renderQuizRunner(){
-  const quiz = state.quiz; const q = quiz.questions[quiz.index]; const ans = quiz.answers[quiz.index];
+  const quiz = state.quiz;
+  if(quiz.onBreak){ return renderBreakScreen(); }
+  const q = quiz.questions[quiz.index]; const ans = quiz.answers[quiz.index];
   const eliminated = ans.eliminated || [];
   const myId = state.session.user.id;
   const myFlag = activeFlagsFor(q.id).find(f=>f.flaggedBy===myId);
@@ -632,6 +641,21 @@ function renderQuizRunner(){
       </div>`;
     }).join('')}</div></div>
     <div class="quiz-nextrow"><button class="btn teal" data-action="next-question">${quiz.index<quiz.questions.length-1?'Next question':'Finish'}</button></div>`;
+}
+function renderBreakScreen(){
+  const quiz = state.quiz;
+  const answeredSoFar = quiz.answers.slice(0, quiz.sessionSize).filter(a=>a.chosenIndex!==null).length;
+  return `
+    <div class="card" style="text-align:center;padding:40px 24px;">
+      <div class="eyebrow">Session 1 complete</div>
+      <h1 class="pagetitle" style="margin-top:6px;">Take a break</h1>
+      <p class="lede" style="margin:0 auto 22px auto;">You answered ${answeredSoFar} of ${quiz.sessionSize} questions in Session 1. Just like the real NPLEX I, there's a break between sessions — step away, then start Session 2 whenever you're ready. Your Session 1 answers are locked in and can't be changed.</p>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+        <button class="btn teal" data-action="continue-after-break">Start Session 2</button>
+        <button class="btn ghost btn-sm" data-action="end-quiz-early">End exam now (Session 1 only)</button>
+        <button class="btn danger btn-sm" data-action="cancel-quiz">Cancel</button>
+      </div>
+    </div>`;
 }
 
 function renderResults(){
@@ -945,6 +969,13 @@ document.addEventListener('click', async (e)=>{
 
   if(action==='select-option'){ state.quiz.answers[state.quiz.index].chosenIndex = parseInt(t.dataset.idx,10); render(); return; }
   if(action==='next-question'){ await advanceQuestion(); return; }
+  if(action==='continue-after-break'){
+    state.quiz.onBreak = false;
+    state.quiz.index++;
+    if(state.quiz.untimed){ state.quiz.elapsed=0; } else { state.quiz.remaining=state.quiz.perQ; }
+    render(); startTimer();
+    return;
+  }
   if(action==='toggle-strike'){
     const idx = parseInt(t.dataset.idx,10);
     const ans = state.quiz.answers[state.quiz.index];
@@ -1024,6 +1055,15 @@ document.addEventListener('input', (e)=>{
   if(e.target.name==='sysAll'){ document.querySelectorAll('.sys-individual').forEach(el=>el.style.display = e.target.checked?'none':'flex'); return; }
   if(e.target.id==='timedUntimedToggle'){ const row=document.getElementById('timedPerQRow'); if(row) row.style.display = e.target.checked?'none':'block'; return; }
   if(e.target.id==='examUntimedToggle'){ const row=document.getElementById('examPerQRow'); if(row) row.style.display = e.target.checked?'none':'block'; return; }
+  if(e.target.name==='count' && e.target.form && e.target.form.id==='examForm'){
+    const splitToggle = document.getElementById('examSplitToggle');
+    if(splitToggle){
+      const is200 = e.target.value==='200' && e.target.checked;
+      splitToggle.disabled = !is200;
+      if(!is200) splitToggle.checked = false;
+    }
+    return;
+  }
 });
 function renderBankPreserveFocus(){
   const active = document.activeElement; const cursorPos = active && active.selectionStart;
@@ -1133,7 +1173,8 @@ document.addEventListener('submit', async (e)=>{
     if(pool.length===0){ alert(f.instructorOnly.checked? 'No instructor-tagged questions are in the bank yet.' : 'The question bank is empty. Add questions first.'); return; }
     const actualCount = Math.min(count,pool.length);
     if(actualCount<count && !confirm(`Only ${pool.length} question(s) in the bank. Start a ${actualCount}-question exam instead?`)) return;
-    startQuiz('exam',pool,actualCount,perQ,f.untimed.checked); return;
+    const doSplit = f.splitSessions.checked && actualCount===200;
+    startQuiz('exam',pool,actualCount,perQ,f.untimed.checked,doSplit); return;
   }
 });
 
