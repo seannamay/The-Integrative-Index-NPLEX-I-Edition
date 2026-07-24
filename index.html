@@ -260,7 +260,7 @@ const CONF_LABELS = {unknown:'Did not know', guessed:'Guessed', understood:'Unde
 const state = {
   view:'dashboard', questions:[], attempts:[], reviews:[], flags:[], feedback:[], feedbackVotes:[],
   bankFilter:'all', bankSearch:'', bankFlaggedOnly:false, bankInstructorOnly:false, bankSelected:[], editingId:null, quiz:null,
-  reviewFilterSystem:'all', reviewFilterConf:'all', feedbackFilter:'all',
+  reviewFilterSystem:'all', reviewFilterConf:'all', reviewFilterResult:'all', feedbackFilter:'all',
   session:null, authMode:'signin', navOpen:false,
 };
 
@@ -424,10 +424,11 @@ function renderDashboard(){
     </div>
     <div class="grid2">
       <div class="card"><div class="card-title">Confidence at time of answer</div>
+        <p class="helptext" style="margin-top:-8px;margin-bottom:12px;">Across everything you've rated in the Review Log — misses and correct answers alike.</p>
         ${['understood','guessed','unknown'].map(k=>{ const n=confCounts[k]||0; const pct = totalReviews? Math.round(n/totalReviews*100):0; const color = k==='understood'?'var(--teal)':k==='guessed'?'var(--amber)':'var(--coral)';
           return `<div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px;"><span>${CONF_LABELS[k]}</span><span class="helptext">${n}</span></div><div style="height:8px;border-radius:5px;background:var(--paper);overflow:hidden;"><div style="height:100%;width:${pct}%;background:${color};"></div></div></div>`;
         }).join('')}
-        ${!totalReviews?'<div class="helptext">Log a gap from your quiz results to start tracking this.</div>':''}
+        ${!totalReviews?'<div class="helptext">Log a gap — or rate your confidence on a correct answer — from your quiz results to start tracking this.</div>':''}
       </div>
       <div class="card"><div class="card-title">Attempt history (${state.attempts.length})</div>
         ${state.attempts.length? state.attempts.slice().reverse().map(a=>{ const pct=Math.round(a.correct/a.total*100);
@@ -670,7 +671,9 @@ function renderResultItem(q,idx){
       ${q.chosenIndex===null?'<div class="helptext">No answer selected — time ran out.</div>':''}</div>
     ${q.explanation?`<div class="helptext" style="margin-bottom:14px;"><strong>Explanation:</strong> ${escapeHtml(q.explanation)}</div>`:''}
     <div style="margin-bottom:${isCorrect?'0':'14px'};">${myFlag?`<button class="btn warn btn-sm" data-action="unflag-question" data-id="${myFlag.id}">Unflag question</button>`:`<button class="btn ghost btn-sm" data-action="flag-question" data-id="${q.qId}">Flag this question</button>`}</div>
-    ${isCorrect?'':(saved?`<div class="chip teal">Gap logged ✓</div>`:`
+    ${isCorrect?(saved?`<div class="chip teal">Confidence logged ✓</div>`:`
+    <div class="formrow"><label class="field-label">How confident were you on this one?</label><div class="confbtns">${['understood','guessed','unknown'].map(c=>`<button type="button" class="confbtn ${draft.confidence===c?'selected':''}" data-action="set-confidence" data-idx="${idx}" data-conf="${c}">${CONF_LABELS[c]}</button>`).join('')}</div></div>
+    <button class="btn teal btn-sm" data-action="save-review" data-idx="${idx}">Save confidence</button>`):(saved?`<div class="chip teal">Gap logged ✓</div>`:`
     <div class="formrow"><label class="field-label">How did you approach this?</label><div class="confbtns">${['understood','guessed','unknown'].map(c=>`<button type="button" class="confbtn ${draft.confidence===c?'selected':''}" data-action="set-confidence" data-idx="${idx}" data-conf="${c}">${CONF_LABELS[c]}</button>`).join('')}</div></div>
     <div class="formrow"><label class="field-label">The clue I missed</label><textarea data-idx="${idx}" data-field="clue" placeholder="What detail in the stem pointed to the right answer?">${escapeHtml(draft.clue)}</textarea></div>
     <div class="formrow"><label class="field-label">The fact I didn't know</label><textarea data-idx="${idx}" data-field="fact" placeholder="What knowledge gap caused this?">${escapeHtml(draft.fact)}</textarea></div>
@@ -683,23 +686,34 @@ function renderReviewLog(){
   const filtered = state.reviews.filter(r=>{
     if(state.reviewFilterSystem!=='all' && r.system!==state.reviewFilterSystem) return false;
     if(state.reviewFilterConf!=='all' && r.confidence!==state.reviewFilterConf) return false;
+    const wasCorrect = r.chosenIndex!==null && r.chosenIndex===r.correctIndex;
+    if(state.reviewFilterResult==='missed' && wasCorrect) return false;
+    if(state.reviewFilterResult==='correct' && !wasCorrect) return false;
     return true;
   }).slice().reverse();
   return `
-    <div class="eyebrow">Close the gap</div>
+    <div class="eyebrow">Close the gap — and track what's landing</div>
     <h1 class="pagetitle">Review Log</h1>
-    <p class="lede">Every missed question you've catalogued — private to you.</p>
+    <p class="lede">Missed questions to close the gap, plus correct answers you've rated for confidence — private to you. A correct answer you guessed on is still worth knowing about.</p>
     <div class="card">
       <div class="searchbar">
         <select id="revFilterSys"><option value="all">All systems</option>${SYSTEMS.map(s=>`<option value="${s.key}" ${state.reviewFilterSystem===s.key?'selected':''}>${s.label}</option>`).join('')}</select>
         <select id="revFilterConf"><option value="all">All confidence levels</option>${Object.keys(CONF_LABELS).map(k=>`<option value="${k}" ${state.reviewFilterConf===k?'selected':''}>${CONF_LABELS[k]}</option>`).join('')}</select>
+        <select id="revFilterResult">
+          <option value="all" ${state.reviewFilterResult==='all'?'selected':''}>Missed + correct</option>
+          <option value="missed" ${state.reviewFilterResult==='missed'?'selected':''}>Missed only</option>
+          <option value="correct" ${state.reviewFilterResult==='correct'?'selected':''}>Correct only</option>
+        </select>
       </div>
-      ${filtered.length===0?'<div class="empty">No logged gaps match this filter yet.</div>':filtered.map(r=>`
-        <div class="qcard"><div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span class="chip neutral">${sysLabel(r.system)}</span><span class="chip ${r.confidence==='understood'?'teal':r.confidence==='guessed'?'amber':'coral'}">${CONF_LABELS[r.confidence]}</span></div>
-        <div class="stem">${escapeHtml(r.stem)}</div><hr class="hair">
+      ${filtered.length===0?'<div class="empty">No logged entries match this filter yet.</div>':filtered.map(r=>{
+        const wasCorrect = r.chosenIndex!==null && r.chosenIndex===r.correctIndex;
+        return `
+        <div class="qcard"><div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span class="chip neutral">${sysLabel(r.system)}</span><span style="display:flex;gap:6px;"><span class="chip ${wasCorrect?'teal':'coral'}">${wasCorrect?'Correct':'Missed'}</span><span class="chip ${r.confidence==='understood'?'teal':r.confidence==='guessed'?'amber':'coral'}">${CONF_LABELS[r.confidence]}</span></span></div>
+        <div class="stem">${escapeHtml(r.stem)}</div>
+        ${wasCorrect?'':`<hr class="hair">
         <div style="font-size:13px;"><strong>Clue missed:</strong> ${escapeHtml(r.clueMissed)||'<span class="helptext">—</span>'}</div>
         <div style="font-size:13px;margin-top:6px;"><strong>Fact I didn't know:</strong> ${escapeHtml(r.factUnknown)||'<span class="helptext">—</span>'}</div>
-        <div style="font-size:13px;margin-top:6px;"><strong>Why I picked wrong:</strong> ${escapeHtml(r.whyWrong)||'<span class="helptext">—</span>'}</div>
+        <div style="font-size:13px;margin-top:6px;"><strong>Why I picked wrong:</strong> ${escapeHtml(r.whyWrong)||'<span class="helptext">—</span>'}</div>`}
         <details style="margin-top:12px;">
           <summary style="cursor:pointer;font-size:12.5px;font-weight:600;color:var(--teal);">Show full question &amp; answer choices</summary>
           <div class="optlist" style="margin-top:10px;">
@@ -710,7 +724,7 @@ function renderReviewLog(){
           </div>
         </details>
         <div style="margin-top:10px;"><button class="btn danger btn-sm" data-action="delete-review" data-id="${r.id}">Delete entry</button></div></div>
-      `).join('')}
+      `;}).join('')}
     </div>`;
 }
 
@@ -1005,6 +1019,7 @@ document.addEventListener('input', (e)=>{
   if(e.target.id==='feedbackFilterSel'){ state.feedbackFilter=e.target.value; render(); return; }
   if(e.target.id==='revFilterSys'){ state.reviewFilterSystem=e.target.value; render(); return; }
   if(e.target.id==='revFilterConf'){ state.reviewFilterConf=e.target.value; render(); return; }
+  if(e.target.id==='revFilterResult'){ state.reviewFilterResult=e.target.value; render(); return; }
   if(e.target.name==='sysAll'){ document.querySelectorAll('.sys-individual').forEach(el=>el.style.display = e.target.checked?'none':'flex'); return; }
   if(e.target.id==='timedUntimedToggle'){ const row=document.getElementById('timedPerQRow'); if(row) row.style.display = e.target.checked?'none':'block'; return; }
   if(e.target.id==='examUntimedToggle'){ const row=document.getElementById('examPerQRow'); if(row) row.style.display = e.target.checked?'none':'block'; return; }
