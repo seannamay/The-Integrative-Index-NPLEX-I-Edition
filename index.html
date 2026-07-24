@@ -447,8 +447,8 @@ function renderDashboard(){
       </div>
     </div>
     <div class="card">
-      <div class="card-title">Question tracking by system</div>
-      <p class="helptext" style="margin-top:-8px;margin-bottom:12px;">How much you've logged in your Review Log per system. Flag a system to bookmark it for focused review — you can also flag right from a quiz's results page.</p>
+      <div class="card-title">Review Log tracking by system</div>
+      <p class="helptext" style="margin-top:-8px;margin-bottom:12px;">This only counts entries you've actively logged in the Review Log — not every question you've ever answered. Go to a quiz's results, use "Review all questions," and save a note or a confidence rating to add to these counts. Flag a system to bookmark it for focused review.</p>
       ${SYSTEMS.map(s=>{
         const sysReviews = state.reviews.filter(r=>r.system===s.key);
         const missedCount = sysReviews.filter(r=>!(r.chosenIndex!==null && r.chosenIndex===r.correctIndex)).length;
@@ -458,7 +458,7 @@ function renderDashboard(){
           <span class="sysnum">${s.num}</span>
           <span class="sysname">${s.label}</span>
           <span class="sysmeta">${sysReviews.length} logged</span>
-          <span class="sysekg helptext">${sysReviews.length?`${missedCount} missed · ${correctCount} correct`:'No entries yet'}</span>
+          <span class="sysekg helptext">${sysReviews.length?`${missedCount} missed (logged) · ${correctCount} correct (rated)`:'No entries logged yet'}</span>
           <span class="systag"><button class="btn ${flagged?'teal':'ghost'} btn-sm" data-action="toggle-system-flag" data-key="${s.key}">${flagged?'★ Flagged':'☆ Flag'}</button></span>
         </div>`;
       }).join('')}
