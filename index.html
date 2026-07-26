@@ -273,7 +273,7 @@ function escapeAttr(s){ return (s||'').replace(/"/g,'&quot;'); }
 
 function rowToQuestion(r){ return {id:r.id, system:r.system, stem:r.stem, options:r.options, correct:r.correct, explanation:r.explanation||'', source:r.source||'', isInstructor:!!r.is_instructor, createdBy:r.created_by, createdByEmail:r.created_by_email}; }
 function rowToAttempt(r){ return {id:r.id, mode:r.mode, perQ:r.per_q, total:r.total, correct:r.correct, questions:r.questions, date:new Date(r.created_at).getTime()}; }
-function rowToReview(r){ return {id:r.id, system:r.system, stem:r.stem, options:r.options, chosenIndex:r.chosen_index, correctIndex:r.correct_index, explanation:r.explanation||'', confidence:r.confidence, clueMissed:r.clue_missed||'', factUnknown:r.fact_unknown||'', whyWrong:r.why_wrong||'', date:new Date(r.created_at).getTime()}; }
+function rowToReview(r){ return {id:r.id, system:r.system, stem:r.stem, options:r.options, chosenIndex:r.chosen_index, correctIndex:r.correct_index, explanation:r.explanation||'', source:r.source||'', confidence:r.confidence, clueMissed:r.clue_missed||'', factUnknown:r.fact_unknown||'', whyWrong:r.why_wrong||'', date:new Date(r.created_at).getTime()}; }
 function rowToFlag(r){ return {id:r.id, questionId:r.question_id, flaggedBy:r.flagged_by, flaggedByEmail:r.flagged_by_email, reason:r.reason, resolved:!!r.resolved, resolvedAt:r.resolved_at, resolutionNote:r.resolution_note||'', date:new Date(r.created_at).getTime()}; }
 function rowToFeedback(r){ return {id:r.id, userId:r.user_id, userEmail:r.user_email, category:r.category, message:r.message, date:new Date(r.created_at).getTime()}; }
 function rowToVote(r){ return {id:r.id, feedbackId:r.feedback_id, userId:r.user_id}; }
@@ -448,7 +448,11 @@ function renderDashboard(){
     </div>
     <div class="card">
       <div class="card-title">Review Log tracking by system</div>
-      <p class="helptext" style="margin-top:-8px;margin-bottom:12px;">This only counts entries you've actively logged in the Review Log — not every question you've ever answered. Go to a quiz's results, use "Review all questions," and save a note or a confidence rating to add to these counts. Flag a system to bookmark it for focused review.</p>
+      <p class="helptext" style="margin-top:-8px;margin-bottom:10px;">Only counts entries you've actively saved in the Review Log — not every question you've answered.</p>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;padding:9px 12px;background:var(--paper);border-radius:7px;margin-bottom:14px;font-size:12px;color:var(--ink-soft);">
+        <span><span class="chip coral">Missed</span> = logged from a wrong answer</span>
+        <span><span class="chip teal">Correct</span> = confidence rated on a right answer</span>
+      </div>
       ${SYSTEMS.map(s=>{
         const sysReviews = state.reviews.filter(r=>r.system===s.key);
         const missedCount = sysReviews.filter(r=>!(r.chosenIndex!==null && r.chosenIndex===r.correctIndex)).length;
@@ -458,7 +462,7 @@ function renderDashboard(){
           <span class="sysnum">${s.num}</span>
           <span class="sysname">${s.label}</span>
           <span class="sysmeta">${sysReviews.length} logged</span>
-          <span class="sysekg helptext">${sysReviews.length?`${missedCount} missed (logged) · ${correctCount} correct (rated)`:'No entries logged yet'}</span>
+          <span class="sysekg helptext">${sysReviews.length?`${missedCount} missed · ${correctCount} correct`:'No entries logged yet'}</span>
           <span class="systag"><button class="btn ${flagged?'teal':'ghost'} btn-sm" data-action="toggle-system-flag" data-key="${s.key}">${flagged?'★ Flagged':'☆ Flag'}</button></span>
         </div>`;
       }).join('')}
@@ -521,7 +525,7 @@ function renderBank(){
         return `<tr data-qid="${q.id}">
         <td data-label="Select">${q.createdBy===myId?`<input type="checkbox" class="bank-select-checkbox" data-id="${q.id}" ${state.bankSelected.includes(q.id)?'checked':''}>`:''}</td>
         <td data-label="System"><span class="chip neutral">${sysNum(q.system)}</span>${q.isInstructor?' <span class="chip teal">Instructor</span>':''}</td>
-        <td data-label="Question" class="stem-hover" data-id="${q.id}">${escapeHtml(q.stem.length>90?q.stem.slice(0,90)+'…':q.stem)}${qFlags.length?` <span class="chip coral" title="${escapeAttr(qFlags.map(f=>f.reason).join(' · '))}">Flagged ×${qFlags.length}</span>`:''}</td>
+        <td data-label="Question" class="stem-hover" data-id="${q.id}">${escapeHtml(q.stem.length>90?q.stem.slice(0,90)+'…':q.stem)}${qFlags.length?` <span class="chip coral" title="${escapeAttr(qFlags.map(f=>f.reason).join(' · '))}">Flagged ×${qFlags.length}</span>`:''}${q.source?`<div class="helptext">Source: ${escapeHtml(q.source)}</div>`:''}</td>
         <td class="helptext" data-label="Added by">${q.createdBy===myId?'You':escapeHtml((q.createdByEmail||'classmate').split('@')[0])}</td>
         <td data-label="Actions">
           ${q.createdBy===myId?`<button class="btn ghost btn-sm" data-action="edit-question" data-id="${q.id}">Edit</button> <button class="btn danger btn-sm" data-action="delete-question" data-id="${q.id}">Delete</button> `:''}
@@ -584,7 +588,7 @@ function renderExamSetup(){
 function buildQuizQuestions(pool,count){
   return shuffle(pool).slice(0,count).map(q=>{
     const idx = shuffle([0,1,2,3]);
-    return { id:q.id, system:q.system, stem:q.stem, explanation:q.explanation||'', options: idx.map(i=>q.options[i]), correct: idx.indexOf(q.correct) };
+    return { id:q.id, system:q.system, stem:q.stem, explanation:q.explanation||'', source:q.source||'', isInstructor:!!q.isInstructor, options: idx.map(i=>q.options[i]), correct: idx.indexOf(q.correct) };
   });
 }
 function startQuiz(mode,pool,count,perQ,untimed,split){
@@ -630,7 +634,7 @@ async function finishQuiz(){
   let correctCount = 0;
   const recorded = qs.map((q,i)=>{
     const chosen = ans[i].chosenIndex; const isCorrect = chosen===q.correct; if(isCorrect) correctCount++;
-    return { qId:q.id, system:q.system, stem:q.stem, options:q.options, explanation:q.explanation, chosenIndex:chosen, correctIndex:q.correct, correct:isCorrect, timedOut:ans[i].timedOut };
+    return { qId:q.id, system:q.system, stem:q.stem, options:q.options, explanation:q.explanation, source:q.source||'', chosenIndex:chosen, correctIndex:q.correct, correct:isCorrect, timedOut:ans[i].timedOut };
   });
   const {data,error} = await sb.from('attempts').insert({ user_id: state.session.user.id, mode: state.quiz.mode, per_q: state.quiz.perQ, total: qs.length, correct: correctCount, questions: recorded }).select().single();
   if(error){ alert('Could not save this attempt: '+error.message); }
@@ -647,7 +651,7 @@ function renderQuizRunner(){
   const myId = state.session.user.id;
   const myFlag = activeFlagsFor(q.id).find(f=>f.flaggedBy===myId);
   return `
-    <div class="quizbar"><div><div class="eyebrow">${quiz.mode==='exam'?'Random exam':'Timed quiz'} · Question ${quiz.index+1} of ${quiz.questions.length}</div><div class="helptext">${sysLabel(q.system)}</div></div><div class="timerbox" id="quizTimerBox">${quiz.untimed?'<span class="helptext" style="display:block;margin-bottom:2px;">Elapsed</span>':''}<span id="quizTimerText">${fmtTime(quiz.untimed?quiz.elapsed:quiz.remaining)}</span></div></div>
+    <div class="quizbar"><div><div class="eyebrow">${quiz.mode==='exam'?'Random exam':'Timed quiz'} · Question ${quiz.index+1} of ${quiz.questions.length}</div><div class="helptext">${sysLabel(q.system)}${q.isInstructor?' · <span style="color:var(--teal);font-weight:600;">Instructor material</span>':''}${q.source?` · Source: ${escapeHtml(q.source)}`:''}</div></div><div class="timerbox" id="quizTimerBox">${quiz.untimed?'<span class="helptext" style="display:block;margin-bottom:2px;">Elapsed</span>':''}<span id="quizTimerText">${fmtTime(quiz.untimed?quiz.elapsed:quiz.remaining)}</span></div></div>
     <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
       <button class="btn ghost btn-sm" data-action="end-quiz-early">End quiz now</button>
       <button class="btn danger btn-sm" data-action="cancel-quiz">Cancel</button>
@@ -714,7 +718,8 @@ function renderResultItem(q,idx){
     <div class="optlist" style="margin-bottom:14px;">${q.options.map((opt,i)=>{ let cls=''; if(i===q.correctIndex) cls='correct'; else if(i===q.chosenIndex) cls='incorrect';
       return `<div class="optbtn ${cls}" style="cursor:default;"><span class="optkey">${String.fromCharCode(65+i)}</span><span>${escapeHtml(opt)}</span>${i===q.correctIndex?' <span class="chip teal" style="margin-left:auto;">Correct</span>':''}${i===q.chosenIndex&&i!==q.correctIndex?' <span class="chip coral" style="margin-left:auto;">Your answer</span>':''}</div>`; }).join('')}
       ${q.chosenIndex===null?'<div class="helptext">No answer selected — time ran out.</div>':''}</div>
-    ${q.explanation?`<div class="helptext" style="margin-bottom:14px;"><strong>Explanation:</strong> ${escapeHtml(q.explanation)}</div>`:''}
+    ${q.explanation?`<div class="helptext" style="margin-bottom:6px;"><strong>Explanation:</strong> ${escapeHtml(q.explanation)}</div>`:''}
+    ${q.source?`<div class="helptext" style="margin-bottom:14px;"><strong>Source:</strong> ${escapeHtml(q.source)}</div>`:''}
     <div style="margin-bottom:${isCorrect?'0':'14px'};">${myFlag?`<button class="btn warn btn-sm" data-action="unflag-question" data-id="${myFlag.id}">Unflag question</button>`:`<button class="btn ghost btn-sm" data-action="flag-question" data-id="${q.qId}">Flag this question</button>`}</div>
     ${isCorrect?(saved?`<div class="chip teal">Confidence logged ✓</div>`:`
     <div class="formrow"><label class="field-label">How confident were you on this one?</label><div class="confbtns">${['understood','guessed','unknown'].map(c=>`<button type="button" class="confbtn ${draft.confidence===c?'selected':''}" data-action="set-confidence" data-idx="${idx}" data-conf="${c}">${CONF_LABELS[c]}</button>`).join('')}</div></div>
@@ -766,6 +771,7 @@ function renderReviewLog(){
               return `<div class="optbtn ${cls}" style="cursor:default;"><span class="optkey">${String.fromCharCode(65+i)}</span><span>${escapeHtml(opt)}</span>${i===r.correctIndex?' <span class="chip teal" style="margin-left:auto;">Correct</span>':''}${i===r.chosenIndex&&i!==r.correctIndex?' <span class="chip coral" style="margin-left:auto;">Your answer</span>':''}</div>`; }).join('')}
             ${r.chosenIndex===null?'<div class="helptext" style="margin-top:6px;">No answer selected — time ran out.</div>':''}
             ${r.explanation?`<div class="helptext" style="margin-top:10px;"><strong>Explanation:</strong> ${escapeHtml(r.explanation)}</div>`:''}
+            ${r.source?`<div class="helptext" style="margin-top:6px;"><strong>Source:</strong> ${escapeHtml(r.source)}</div>`:''}
           </div>
         </details>
         <div style="margin-top:10px;"><button class="btn danger btn-sm" data-action="delete-review" data-id="${r.id}">Delete entry</button></div></div>
@@ -1046,7 +1052,7 @@ document.addEventListener('click', async (e)=>{
     const idx=t.dataset.idx; const draft = state.quiz.reviewDraft[idx]||{};
     if(!draft.confidence){ alert('Choose Did not know / Guessed / Understood first.'); return; }
     const q = state.quiz.result.questions[idx];
-    const {data,error} = await sb.from('reviews').insert({ user_id: state.session.user.id, system:q.system, stem:q.stem, options:q.options, chosen_index:q.chosenIndex, correct_index:q.correctIndex, explanation:q.explanation, confidence:draft.confidence, clue_missed:draft.clue||'', fact_unknown:draft.fact||'', why_wrong:draft.why||'' }).select().single();
+    const {data,error} = await sb.from('reviews').insert({ user_id: state.session.user.id, system:q.system, stem:q.stem, options:q.options, chosen_index:q.chosenIndex, correct_index:q.correctIndex, explanation:q.explanation, source:q.source||'', confidence:draft.confidence, clue_missed:draft.clue||'', fact_unknown:draft.fact||'', why_wrong:draft.why||'' }).select().single();
     if(error){ alert('Could not save: '+error.message); return; }
     state.reviews.push(rowToReview(data)); draft.saved = true; render(); return;
   }
