@@ -329,6 +329,11 @@ function ekgSVG(accuracy,hasData,width,confidence){
   return `<svg width="${width}" height="${h}" viewBox="0 0 ${width} ${h}" preserveAspectRatio="none"><polyline points="${p}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"${lowConf?' stroke-dasharray="4 3" opacity="0.55"':''}/></svg>`;
 }
 function flagsFor(questionId){ return state.flags.filter(f=>f.questionId===questionId); }
+function seenQuestionIds(){
+  const ids = new Set();
+  state.attempts.forEach(a=> a.questions.forEach(q=> ids.add(q.qId)));
+  return ids;
+}
 function activeFlagsFor(questionId){ return state.flags.filter(f=>f.questionId===questionId && !f.resolved); }
 function feedbackVotesFor(feedbackId){ return state.feedbackVotes.filter(v=>v.feedbackId===feedbackId); }
 
@@ -567,6 +572,7 @@ function renderTimedSetup(){
       <div class="formrow" id="timedPerQRow"><label class="field-label">Seconds per question</label><input type="number" name="perQ" value="120" min="15" max="600" style="max-width:140px;"><div class="helptext">~120s ≈ 2 minutes per item.</div></div>
       <div class="formrow"><label class="field-label">Systems to include</label><div class="checkgrid"><label class="checkchip"><input type="checkbox" name="sysAll" checked> All systems</label>${SYSTEMS.map(s=>`<label class="checkchip sys-individual" style="display:none;"><input type="checkbox" name="sys" value="${s.key}"> ${s.label}</label>`).join('')}</div></div>
       <div class="formrow"><label class="checkchip"><input type="checkbox" name="instructorOnly"> Instructor material only</label></div>
+      <div class="formrow"><label class="checkchip"><input type="checkbox" name="unseenOnly"> Only questions I haven't seen yet</label><div class="helptext">Excludes any question that's appeared in a past quiz or exam of yours.</div></div>
       <button type="submit" class="btn teal" style="margin-top:10px;">Start timed quiz</button>
     </form></div>`;
 }
@@ -581,6 +587,7 @@ function renderExamSetup(){
       <div class="formrow"><label class="checkchip"><input type="checkbox" name="untimed" id="examUntimedToggle"> Untimed (self-paced, no countdown)</label></div>
       <div class="formrow" id="examPerQRow"><label class="field-label">Seconds per question</label><input type="number" name="perQ" value="90" min="15" max="600" style="max-width:140px;"><div class="helptext">NPLEX I paces ~90 seconds/item; adjust freely.</div></div>
       <div class="formrow"><label class="checkchip"><input type="checkbox" name="instructorOnly"> Instructor material only</label></div>
+      <div class="formrow"><label class="checkchip"><input type="checkbox" name="unseenOnly"> Only questions I haven't seen yet</label><div class="helptext">Excludes any question that's appeared in a past quiz or exam of yours.</div></div>
       <button type="submit" class="btn teal" style="margin-top:10px;">Generate random exam</button>
     </form></div>`;
 }
@@ -1203,16 +1210,18 @@ document.addEventListener('submit', async (e)=>{
     const sysAll = f.sysAll.checked;
     let systems = sysAll ? SYSTEMS.map(s=>s.key) : Array.from(f.querySelectorAll('input[name=sys]:checked')).map(el=>el.value);
     if(systems.length===0) systems = SYSTEMS.map(s=>s.key);
-    const pool = state.questions.filter(q=>systems.includes(q.system) && (!f.instructorOnly.checked || q.isInstructor));
-    if(pool.length===0){ alert(f.instructorOnly.checked? 'No instructor-tagged questions match the selected systems.' : 'No questions in the bank for the selected systems.'); return; }
+    let pool = state.questions.filter(q=>systems.includes(q.system) && (!f.instructorOnly.checked || q.isInstructor));
+    if(f.unseenOnly.checked){ const seen = seenQuestionIds(); pool = pool.filter(q=>!seen.has(q.id)); }
+    if(pool.length===0){ alert(f.unseenOnly.checked? "You've already seen every question matching these filters. Uncheck \"Only unseen questions\" to include repeats." : (f.instructorOnly.checked? 'No instructor-tagged questions match the selected systems.' : 'No questions in the bank for the selected systems.')); return; }
     const actualCount = Math.min(count,pool.length);
     if(actualCount<count && !confirm(`Only ${pool.length} question(s) available for this selection. Start a ${actualCount}-question quiz instead?`)) return;
     startQuiz('timed',pool,actualCount,perQ,f.untimed.checked); return;
   }
   if(e.target.id==='examForm'){
     const f = e.target; const count = parseInt(f.count.value,10); const perQ = parseInt(f.perQ.value,10)||90;
-    const pool = f.instructorOnly.checked ? state.questions.filter(q=>q.isInstructor) : state.questions;
-    if(pool.length===0){ alert(f.instructorOnly.checked? 'No instructor-tagged questions are in the bank yet.' : 'The question bank is empty. Add questions first.'); return; }
+    let pool = f.instructorOnly.checked ? state.questions.filter(q=>q.isInstructor) : state.questions;
+    if(f.unseenOnly.checked){ const seen = seenQuestionIds(); pool = pool.filter(q=>!seen.has(q.id)); }
+    if(pool.length===0){ alert(f.unseenOnly.checked? "You've already seen every question matching these filters. Uncheck \"Only unseen questions\" to include repeats." : (f.instructorOnly.checked? 'No instructor-tagged questions are in the bank yet.' : 'The question bank is empty. Add questions first.')); return; }
     const actualCount = Math.min(count,pool.length);
     if(actualCount<count && !confirm(`Only ${pool.length} question(s) in the bank. Start a ${actualCount}-question exam instead?`)) return;
     const doSplit = f.splitSessions.checked && actualCount===200;
