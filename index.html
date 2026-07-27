@@ -260,7 +260,7 @@ const CONF_LABELS = {unknown:'Did not know', guessed:'Guessed', understood:'Unde
 
 const state = {
   view:'dashboard', questions:[], attempts:[], reviews:[], flags:[], feedback:[], feedbackVotes:[], systemFlags:[],
-  bankFilter:'all', bankSearch:'', bankFlaggedOnly:false, bankInstructorOnly:false, bankSelected:[], editingId:null, quiz:null,
+  bankFilter:'all', bankSearch:'', bankFlaggedOnly:false, bankInstructorOnly:false, bankNplexOnly:false, bankSelected:[], editingId:null, quiz:null,
   reviewFilterSystem:'all', reviewFilterConf:'all', reviewFilterResult:'all', feedbackFilter:'all',
   session:null, authMode:'signin', navOpen:false,
 };
@@ -271,7 +271,7 @@ function shuffle(arr){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){const 
 function escapeHtml(s){ return (s||'').replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 function escapeAttr(s){ return (s||'').replace(/"/g,'&quot;'); }
 
-function rowToQuestion(r){ return {id:r.id, system:r.system, stem:r.stem, options:r.options, correct:r.correct, explanation:r.explanation||'', source:r.source||'', isInstructor:!!r.is_instructor, createdBy:r.created_by, createdByEmail:r.created_by_email}; }
+function rowToQuestion(r){ return {id:r.id, system:r.system, stem:r.stem, options:r.options, correct:r.correct, explanation:r.explanation||'', source:r.source||'', isInstructor:!!r.is_instructor, isNplex:!!r.is_nplex, createdBy:r.created_by, createdByEmail:r.created_by_email}; }
 function rowToAttempt(r){ return {id:r.id, mode:r.mode, perQ:r.per_q, total:r.total, correct:r.correct, questions:r.questions, date:new Date(r.created_at).getTime()}; }
 function rowToReview(r){ return {id:r.id, system:r.system, stem:r.stem, options:r.options, chosenIndex:r.chosen_index, correctIndex:r.correct_index, explanation:r.explanation||'', source:r.source||'', confidence:r.confidence, clueMissed:r.clue_missed||'', factUnknown:r.fact_unknown||'', whyWrong:r.why_wrong||'', date:new Date(r.created_at).getTime()}; }
 function rowToFlag(r){ return {id:r.id, questionId:r.question_id, flaggedBy:r.flagged_by, flaggedByEmail:r.flagged_by_email, reason:r.reason, resolved:!!r.resolved, resolvedAt:r.resolved_at, resolutionNote:r.resolution_note||'', date:new Date(r.created_at).getTime()}; }
@@ -483,6 +483,7 @@ function renderBank(){
     if(state.bankSearch && !q.stem.toLowerCase().includes(state.bankSearch.toLowerCase())) return false;
     if(state.bankFlaggedOnly && activeFlagsFor(q.id).length===0) return false;
     if(state.bankInstructorOnly && !q.isInstructor) return false;
+    if(state.bankNplexOnly && !q.isNplex) return false;
     return true;
   });
   return `
@@ -501,6 +502,7 @@ function renderBank(){
         <div class="formrow"><label class="field-label">Explanation (shown after answering)</label><textarea name="explanation" placeholder="Why the keyed answer is correct, and why distractors are wrong.">${editing?escapeHtml(editing.explanation||''):''}</textarea></div>
         <div class="formrow"><label class="field-label">Source (optional)</label><input type="text" name="source" value="${editing?escapeAttr(editing.source||''):''}" placeholder="e.g. Dr. Smith's Cardio lecture, Week 4"></div>
         <div class="formrow"><label class="checkchip"><input type="checkbox" name="isInstructor" ${editing&&editing.isInstructor?'checked':''}> This question is from instructor material</label></div>
+        <div class="formrow"><label class="checkchip"><input type="checkbox" name="isNplex" ${editing&&editing.isNplex?'checked':''}> This question is from NPLEX material</label></div>
         <div style="display:flex;gap:10px;"><button type="submit" class="btn teal">${editing?'Save changes':'Add question'}</button>${editing?'<button type="button" class="btn secondary" data-action="cancel-edit">Cancel</button>':''}</div>
         <div class="errtext" id="qformError"></div>
       </form>
@@ -512,6 +514,7 @@ function renderBank(){
         <input type="text" id="bankSearchInput" placeholder="Search question text…" value="${escapeAttr(state.bankSearch)}">
         <label class="checkchip"><input type="checkbox" id="bankFlaggedOnly" ${state.bankFlaggedOnly?'checked':''}> Flagged only</label>
         <label class="checkchip"><input type="checkbox" id="bankInstructorOnly" ${state.bankInstructorOnly?'checked':''}> Instructor only</label>
+        <label class="checkchip"><input type="checkbox" id="bankNplexOnly" ${state.bankNplexOnly?'checked':''}> NPLEX only</label>
         <button class="btn secondary btn-sm" data-action="export-bank">Export JSON</button>
       </div>
       <div class="searchbar">
@@ -529,7 +532,7 @@ function renderBank(){
         const canResolve = qFlags.length>0 && (q.createdBy===myId || !!myFlag);
         return `<tr data-qid="${q.id}">
         <td data-label="Select">${q.createdBy===myId?`<input type="checkbox" class="bank-select-checkbox" data-id="${q.id}" ${state.bankSelected.includes(q.id)?'checked':''}>`:''}</td>
-        <td data-label="System"><span class="chip neutral">${sysNum(q.system)}</span>${q.isInstructor?' <span class="chip teal">Instructor</span>':''}</td>
+        <td data-label="System"><span class="chip neutral">${sysNum(q.system)}</span>${q.isInstructor?' <span class="chip teal">Instructor</span>':''}${q.isNplex?' <span class="chip amber">NPLEX</span>':''}</td>
         <td data-label="Question" class="stem-hover" data-id="${q.id}">${escapeHtml(q.stem.length>90?q.stem.slice(0,90)+'…':q.stem)}${qFlags.length?` <span class="chip coral" title="${escapeAttr(qFlags.map(f=>f.reason).join(' · '))}">Flagged ×${qFlags.length}</span>`:''}${q.source?`<div class="helptext">Source: ${escapeHtml(q.source)}</div>`:''}</td>
         <td class="helptext" data-label="Added by">${q.createdBy===myId?'You':escapeHtml((q.createdByEmail||'classmate').split('@')[0])}</td>
         <td data-label="Actions">
@@ -572,6 +575,7 @@ function renderTimedSetup(){
       <div class="formrow" id="timedPerQRow"><label class="field-label">Seconds per question</label><input type="number" name="perQ" value="120" min="15" max="600" style="max-width:140px;"><div class="helptext">~120s ≈ 2 minutes per item.</div></div>
       <div class="formrow"><label class="field-label">Systems to include</label><div class="checkgrid"><label class="checkchip"><input type="checkbox" name="sysAll" checked> All systems</label>${SYSTEMS.map(s=>`<label class="checkchip sys-individual" style="display:none;"><input type="checkbox" name="sys" value="${s.key}"> ${s.label}</label>`).join('')}</div></div>
       <div class="formrow"><label class="checkchip"><input type="checkbox" name="instructorOnly"> Instructor material only</label></div>
+      <div class="formrow"><label class="checkchip"><input type="checkbox" name="nplexOnly"> NPLEX material only</label></div>
       <div class="formrow"><label class="checkchip"><input type="checkbox" name="unseenOnly"> Only questions I haven't seen yet</label><div class="helptext">Excludes any question that's appeared in a past quiz or exam of yours.</div></div>
       <button type="submit" class="btn teal" style="margin-top:10px;">Start timed quiz</button>
     </form></div>`;
@@ -587,6 +591,7 @@ function renderExamSetup(){
       <div class="formrow"><label class="checkchip"><input type="checkbox" name="untimed" id="examUntimedToggle"> Untimed (self-paced, no countdown)</label></div>
       <div class="formrow" id="examPerQRow"><label class="field-label">Seconds per question</label><input type="number" name="perQ" value="90" min="15" max="600" style="max-width:140px;"><div class="helptext">NPLEX I paces ~90 seconds/item; adjust freely.</div></div>
       <div class="formrow"><label class="checkchip"><input type="checkbox" name="instructorOnly"> Instructor material only</label></div>
+      <div class="formrow"><label class="checkchip"><input type="checkbox" name="nplexOnly"> NPLEX material only</label></div>
       <div class="formrow"><label class="checkchip"><input type="checkbox" name="unseenOnly"> Only questions I haven't seen yet</label><div class="helptext">Excludes any question that's appeared in a past quiz or exam of yours.</div></div>
       <button type="submit" class="btn teal" style="margin-top:10px;">Generate random exam</button>
     </form></div>`;
@@ -595,7 +600,7 @@ function renderExamSetup(){
 function buildQuizQuestions(pool,count){
   return shuffle(pool).slice(0,count).map(q=>{
     const idx = shuffle([0,1,2,3]);
-    return { id:q.id, system:q.system, stem:q.stem, explanation:q.explanation||'', source:q.source||'', isInstructor:!!q.isInstructor, options: idx.map(i=>q.options[i]), correct: idx.indexOf(q.correct) };
+    return { id:q.id, system:q.system, stem:q.stem, explanation:q.explanation||'', source:q.source||'', isInstructor:!!q.isInstructor, isNplex:!!q.isNplex, options: idx.map(i=>q.options[i]), correct: idx.indexOf(q.correct) };
   });
 }
 function startQuiz(mode,pool,count,perQ,untimed,split){
@@ -658,7 +663,7 @@ function renderQuizRunner(){
   const myId = state.session.user.id;
   const myFlag = activeFlagsFor(q.id).find(f=>f.flaggedBy===myId);
   return `
-    <div class="quizbar"><div><div class="eyebrow">${quiz.mode==='exam'?'Random exam':'Timed quiz'} · Question ${quiz.index+1} of ${quiz.questions.length}</div><div class="helptext">${sysLabel(q.system)}${q.isInstructor?' · <span style="color:var(--teal);font-weight:600;">Instructor material</span>':''}${q.source?` · Source: ${escapeHtml(q.source)}`:''}</div></div><div class="timerbox" id="quizTimerBox">${quiz.untimed?'<span class="helptext" style="display:block;margin-bottom:2px;">Elapsed</span>':''}<span id="quizTimerText">${fmtTime(quiz.untimed?quiz.elapsed:quiz.remaining)}</span></div></div>
+    <div class="quizbar"><div><div class="eyebrow">${quiz.mode==='exam'?'Random exam':'Timed quiz'} · Question ${quiz.index+1} of ${quiz.questions.length}</div><div class="helptext">${sysLabel(q.system)}${q.isInstructor?' · <span style="color:var(--teal);font-weight:600;">Instructor material</span>':''}${q.isNplex?' · <span style="color:var(--amber);font-weight:600;">NPLEX material</span>':''}${q.source?` · Source: ${escapeHtml(q.source)}`:''}</div></div><div class="timerbox" id="quizTimerBox">${quiz.untimed?'<span class="helptext" style="display:block;margin-bottom:2px;">Elapsed</span>':''}<span id="quizTimerText">${fmtTime(quiz.untimed?quiz.elapsed:quiz.remaining)}</span></div></div>
     <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
       <button class="btn ghost btn-sm" data-action="end-quiz-early">End quiz now</button>
       <button class="btn danger btn-sm" data-action="cancel-quiz">Cancel</button>
@@ -1097,6 +1102,7 @@ document.addEventListener('input', (e)=>{
   }
   if(e.target.id==='bankFlaggedOnly'){ state.bankFlaggedOnly=e.target.checked; render(); return; }
   if(e.target.id==='bankInstructorOnly'){ state.bankInstructorOnly=e.target.checked; render(); return; }
+  if(e.target.id==='bankNplexOnly'){ state.bankNplexOnly=e.target.checked; render(); return; }
   if(e.target.id==='feedbackFilterSel'){ state.feedbackFilter=e.target.value; render(); return; }
   if(e.target.id==='revFilterSys'){ state.reviewFilterSystem=e.target.value; render(); return; }
   if(e.target.id==='revFilterConf'){ state.reviewFilterConf=e.target.value; render(); return; }
@@ -1130,6 +1136,7 @@ function showQuestionPreview(q, evt){
   if(q.explanation) meta.push(escapeHtml(q.explanation));
   if(q.source) meta.push('Source: '+escapeHtml(q.source));
   if(q.isInstructor) meta.push('<strong style="color:var(--teal);">Instructor material</strong>');
+  if(q.isNplex) meta.push('<strong style="color:var(--amber);">NPLEX material</strong>');
   tip.innerHTML = `<div class="qp-stem">${escapeHtml(q.stem)}</div>` +
     q.options.map((opt,i)=>`<div class="qp-opt ${i===q.correct?'correct':''}">${String.fromCharCode(65+i)}. ${escapeHtml(opt)}${i===q.correct?' ✓':''}</div>`).join('') +
     (meta.length?`<div class="qp-explain">${meta.join('<br>')}</div>`:'');
@@ -1170,13 +1177,13 @@ document.addEventListener('submit', async (e)=>{
     const f = e.target; const opts = [0,1,2,3].map(i=>f['opt'+i].value.trim());
     const errEl = document.getElementById('qformError');
     if(opts.some(o=>!o) || !f.stem.value.trim()){ errEl.textContent='Please fill in the stem and all four options.'; return; }
-    const payload = { system:f.system.value, stem:f.stem.value.trim(), options:opts, correct:parseInt(f.correct.value,10), explanation:f.explanation.value.trim(), source:f.source.value.trim(), is_instructor:f.isInstructor.checked };
+    const payload = { system:f.system.value, stem:f.stem.value.trim(), options:opts, correct:parseInt(f.correct.value,10), explanation:f.explanation.value.trim(), source:f.source.value.trim(), is_instructor:f.isInstructor.checked, is_nplex:f.isNplex.checked };
     const editingId = f.dataset.editing;
     if(editingId){
       const {error} = await sb.from('questions').update(payload).eq('id', editingId);
       if(error){ errEl.textContent = error.message; return; }
       const q = state.questions.find(q=>q.id===editingId);
-      q.system=payload.system; q.stem=payload.stem; q.options=payload.options; q.correct=payload.correct; q.explanation=payload.explanation; q.source=payload.source; q.isInstructor=payload.is_instructor;
+      q.system=payload.system; q.stem=payload.stem; q.options=payload.options; q.correct=payload.correct; q.explanation=payload.explanation; q.source=payload.source; q.isInstructor=payload.is_instructor; q.isNplex=payload.is_nplex;
       state.editingId=null;
       render();
       requestAnimationFrame(()=>{
@@ -1210,18 +1217,18 @@ document.addEventListener('submit', async (e)=>{
     const sysAll = f.sysAll.checked;
     let systems = sysAll ? SYSTEMS.map(s=>s.key) : Array.from(f.querySelectorAll('input[name=sys]:checked')).map(el=>el.value);
     if(systems.length===0) systems = SYSTEMS.map(s=>s.key);
-    let pool = state.questions.filter(q=>systems.includes(q.system) && (!f.instructorOnly.checked || q.isInstructor));
+    let pool = state.questions.filter(q=>systems.includes(q.system) && (!f.instructorOnly.checked || q.isInstructor) && (!f.nplexOnly.checked || q.isNplex));
     if(f.unseenOnly.checked){ const seen = seenQuestionIds(); pool = pool.filter(q=>!seen.has(q.id)); }
-    if(pool.length===0){ alert(f.unseenOnly.checked? "You've already seen every question matching these filters. Uncheck \"Only unseen questions\" to include repeats." : (f.instructorOnly.checked? 'No instructor-tagged questions match the selected systems.' : 'No questions in the bank for the selected systems.')); return; }
+    if(pool.length===0){ alert(f.unseenOnly.checked? "You've already seen every question matching these filters. Uncheck \"Only unseen questions\" to include repeats." : 'No questions in the bank match these filters.'); return; }
     const actualCount = Math.min(count,pool.length);
     if(actualCount<count && !confirm(`Only ${pool.length} question(s) available for this selection. Start a ${actualCount}-question quiz instead?`)) return;
     startQuiz('timed',pool,actualCount,perQ,f.untimed.checked); return;
   }
   if(e.target.id==='examForm'){
     const f = e.target; const count = parseInt(f.count.value,10); const perQ = parseInt(f.perQ.value,10)||90;
-    let pool = f.instructorOnly.checked ? state.questions.filter(q=>q.isInstructor) : state.questions;
+    let pool = state.questions.filter(q=>(!f.instructorOnly.checked || q.isInstructor) && (!f.nplexOnly.checked || q.isNplex));
     if(f.unseenOnly.checked){ const seen = seenQuestionIds(); pool = pool.filter(q=>!seen.has(q.id)); }
-    if(pool.length===0){ alert(f.unseenOnly.checked? "You've already seen every question matching these filters. Uncheck \"Only unseen questions\" to include repeats." : (f.instructorOnly.checked? 'No instructor-tagged questions are in the bank yet.' : 'The question bank is empty. Add questions first.')); return; }
+    if(pool.length===0){ alert(f.unseenOnly.checked? "You've already seen every question matching these filters. Uncheck \"Only unseen questions\" to include repeats." : 'No questions in the bank match these filters.'); return; }
     const actualCount = Math.min(count,pool.length);
     if(actualCount<count && !confirm(`Only ${pool.length} question(s) in the bank. Start a ${actualCount}-question exam instead?`)) return;
     const doSplit = f.splitSessions.checked && actualCount===200;
